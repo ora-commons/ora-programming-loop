@@ -1,0 +1,90 @@
+{
+  "files": [
+    {
+      "executable": false,
+      "path": "LICENSE",
+      "sha256": "d08917ad4cf19dc0f4d6cffa9ffd792835a1748070539d7e783abc236cfa2c3c"
+    },
+    {
+      "executable": false,
+      "path": "NOTICE.md",
+      "sha256": "192e926e1c3b277b624c728c6dfbff565f15c8448a3e833bd33fe3e62b6a4140"
+    },
+    {
+      "executable": false,
+      "path": "README.md",
+      "sha256": "83a033c239523a2911409b1fd91fed050627602b41d3c37a93c975cd4a5112bd"
+    },
+    {
+      "executable": false,
+      "path": "VERSION",
+      "sha256": "59854984853104df5c353e2f681a15fc7924742f9a2e468c29af248dce45ce03"
+    },
+    {
+      "executable": false,
+      "path": "adapters/claude.md",
+      "sha256": "4c6f4bcb836026f04a329e81d88d97a67693d0fce5cce6d4f8b1feee5ff35e89"
+    },
+    {
+      "executable": false,
+      "path": "adapters/codex.md",
+      "sha256": "ab22d9451af9a6dd28e0fb515cb43cf14478c201c018ddfaa31b10d9dfb57bbb"
+    },
+    {
+      "executable": false,
+      "path": "adapters/hermes.md",
+      "sha256": "8d8dac0c6d2c7b7775e5faabbdec8c539db03e7e4627c6c078ac5dc261460ff9"
+    },
+    {
+      "executable": false,
+      "path": "adapters/minimax.md",
+      "sha256": "89ec4b39477c0b974241c1b151d0a3b4bc19a12131b692b64f4b406e8cd73c0a"
+    },
+    {
+      "executable": false,
+      "path": "adapters/qwen.md",
+      "sha256": "99ee4cf0f441aade18f218452830ee6fa6b0bddef6aa37f841de6980d96ff96d"
+    },
+    {
+      "executable": false,
+      "path": "adapters/zcode.md",
+      "sha256": "5f0217dce6fb4f267191d7f398a86666596a56c232178020c5888ec5b74dc465"
+    },
+    {
+      "executable": false,
+      "path": "frameworks/programming-loop.md",
+      "sha256": "66b1fa787447a41a62a1af4150604b5a439c28daf84b9a333f7a3640bc86ade2"
+    },
+    {
+      "executable": false,
+      "path": "profiles/claude/programming-loop-reviewer.md",
+      "sha256": "c5aa930a38a9b5795a927b78f96d5f538607e56fd6d82f0cdcbba974caf03a09"
+    },
+    {
+      "executable": false,
+      "path": "profiles/qwen/programming-loop-reviewer.md",
+      "sha256": "083fdb0244d4061bec893c65d8b4c3f8286387c48953e8df77ff87d8e88ce209"
+    },
+    {
+      "executable": false,
+      "path": "profiles/zcode/programming-loop-reviewer.md",
+      "sha256": "ea1fbd60f4683fd0fc33394c68b1b4a8ce83778e1ac6974829d5aa5630fa9fed"
+    },
+    {
+      "executable": false,
+      "path": "scripts/install.py",
+      "sha256": "b06fb810dd88292d53197ff6434631fb034108f35baab7e68366909be164316e"
+    },
+    {
+      "executable": false,
+      "path": "skills/programming-loop/SKILL.md",
+      "sha256": "858e9df37aa6b55a125ec8909bfb1ec407144a20bbc233f51c71626e883a28b9"
+    },
+    {
+      "executable": false,
+      "path": "tests/test_distribution.py",
+      "sha256": "f50b271ccec1ad18d8d10a4e0d8483ddf62a1d49a1ff21e3d76ca9d8b976ae9f"
+    }
+  ],
+  "version": 1
+}
