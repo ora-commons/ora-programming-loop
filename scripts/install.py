@@ -26,6 +26,41 @@ PROFILE_HOSTS = {"claude", "zcode", "qwen"}
 COMPONENT = "programming-loop"
 PROFILE = "programming-loop-reviewer.md"
 SOURCE = Path(__file__).resolve().parents[1]
+PUBLIC_MANIFEST = ".ora-public-release-manifest.json"
+PUBLIC_REPOSITORY = "https://github.com/ora-commons/ora-programming-loop"
+PUBLIC_REPOSITORY_IDENTIFIER = "ora-commons/ora-programming-loop"
+AUTHORITATIVE_REPOSITORY = "Golfplan18/ora-programming-loop"
+VENDORED_SNAPSHOT = "components/programming-loop"
+PRODUCT_PATHS = frozenset({
+    "VERSION",
+    "LICENSE",
+    "NOTICE.md",
+    "README.md",
+    "frameworks/programming-loop.md",
+    "adapters/claude.md",
+    "adapters/codex.md",
+    "adapters/hermes.md",
+    "adapters/minimax.md",
+    "adapters/qwen.md",
+    "adapters/zcode.md",
+    "scripts/install.py",
+    "skills/programming-loop/SKILL.md",
+    "profiles/claude/programming-loop-reviewer.md",
+    "profiles/qwen/programming-loop-reviewer.md",
+    "profiles/zcode/programming-loop-reviewer.md",
+    "tests/test_distribution.py",
+})
+VENDORED_IDENTITY_KEYS = {
+    "authoritative_repository",
+    "component",
+    "files",
+    "public_release_repository",
+    "source",
+    "source_revision",
+    "source_tree",
+    "vendored_snapshot",
+    "version",
+}
 
 
 class InstallationError(Exception):
@@ -55,16 +90,207 @@ def regular_bytes(path: Path) -> bytes:
     return path.read_bytes()
 
 
+def valid_file_identity(name: object, expected: object) -> bool:
+    if not isinstance(name, str) or not isinstance(expected, str):
+        return False
+    path = PurePosixPath(name)
+    return (bool(name) and name != "." and not path.is_absolute()
+            and ".." not in path.parts and "\\" not in name
+            and str(path) == name and re.fullmatch(r"[0-9a-f]{64}", expected) is not None)
+
+
+def package_files(source: Path, label: str) -> dict[str, tuple[bytes, bool]]:
+    if source.is_symlink() or not source.is_dir():
+        raise InstallationError(f"{label} source must be a regular directory")
+    files = {}
+    for path in source.rglob("*"):
+        name = path.relative_to(source).as_posix()
+        if name == ".git":
+            if path.is_symlink():
+                raise InstallationError(f"{label} contains a symbolic link: {name}")
+            if path.is_dir() or path.is_file():
+                continue
+            raise InstallationError(f"{label} contains a non-regular resource: {name}")
+        if name.startswith(".git/"):
+            continue
+        if ".git" in PurePosixPath(name).parts:
+            raise InstallationError(f"{label} contains nested Git control metadata: {name}")
+        if name in {PUBLIC_MANIFEST, "SOURCE.json"}:
+            continue
+        if path.is_symlink():
+            raise InstallationError(f"{label} contains a symbolic link: {name}")
+        if path.is_dir():
+            continue
+        if not path.is_file():
+            raise InstallationError(f"{label} contains a non-regular resource: {name}")
+        if name not in PRODUCT_PATHS:
+            raise InstallationError(f"{label} contains an unexpected resource: {name}")
+        files[name] = (path.read_bytes(), bool(path.stat().st_mode & 0o111))
+    missing = PRODUCT_PATHS - set(files)
+    if missing:
+        raise InstallationError(
+            f"{label} is missing package resources: {', '.join(sorted(missing))}"
+        )
+    return files
+
+
+def validate_source_hashes(identity: object,
+                           source_files: dict[str, tuple[bytes, bool]],
+                           label: str) -> None:
+    if not isinstance(identity, dict):
+        raise InstallationError(f"{label} must contain a file identity mapping")
+    for name, expected in identity.items():
+        if not valid_file_identity(name, expected):
+            raise InstallationError(f"{label} contains an invalid file identity")
+    if set(identity) != PRODUCT_PATHS:
+        raise InstallationError(f"{label} must identify the exact Programming Loop package")
+    for name, (data, _executable) in source_files.items():
+        if identity.get(name) != digest(data):
+            raise InstallationError(f"{label} does not identify the supplied resource: {name}")
+
+
+def git_object_id(kind: str, data: bytes) -> bytes:
+    return hashlib.sha1(f"{kind} {len(data)}\0".encode() + data).digest()
+
+
+def git_tree_id(source_files: dict[str, tuple[bytes, bool]]) -> str:
+    root = {}
+    for name, value in source_files.items():
+        node = root
+        parts = PurePosixPath(name).parts
+        for part in parts[:-1]:
+            node = node.setdefault(part, {})
+        node[parts[-1]] = value
+
+    def tree_object(node: dict) -> bytes:
+        entries = []
+        for name, value in node.items():
+            encoded_name = name.encode()
+            if isinstance(value, dict):
+                mode = b"40000"
+                object_id = tree_object(value)
+                sort_key = encoded_name + b"/"
+            else:
+                data, executable = value
+                mode = b"100755" if executable else b"100644"
+                object_id = git_object_id("blob", data)
+                sort_key = encoded_name
+            entries.append((sort_key, mode + b" " + encoded_name + b"\0" + object_id))
+        tree = b"".join(entry for _key, entry in sorted(entries))
+        return git_object_id("tree", tree)
+
+    return tree_object(root).hex()
+
+
+def package_provenance(
+        source: Path, version: str,
+) -> tuple[dict, dict[str, tuple[bytes, bool]] | None]:
+    manifest_path = source / PUBLIC_MANIFEST
+    identity_path = source / "SOURCE.json"
+    has_manifest = manifest_path.exists() or manifest_path.is_symlink()
+    has_identity = identity_path.exists() or identity_path.is_symlink()
+    if has_manifest and has_identity:
+        raise InstallationError(
+            f"The source folder contains both {PUBLIC_MANIFEST} and SOURCE.json; "
+            "use one unambiguous release or vendored source folder"
+        )
+    if has_manifest:
+        raw = regular_bytes(manifest_path)
+        try:
+            manifest = json.loads(raw)
+        except ValueError as error:
+            raise InstallationError(f"Invalid {PUBLIC_MANIFEST}") from error
+        if (not isinstance(manifest, dict) or set(manifest) != {"version", "files"}
+                or type(manifest.get("version")) is not int
+                or manifest["version"] != 1
+                or not isinstance(manifest.get("files"), list)):
+            raise InstallationError(f"Invalid {PUBLIC_MANIFEST} structure")
+        source_files = package_files(source, PUBLIC_MANIFEST)
+        manifest_files = {}
+        for entry in manifest["files"]:
+            if (not isinstance(entry, dict)
+                    or set(entry) != {"path", "sha256", "executable"}
+                    or not isinstance(entry.get("executable"), bool)
+                    or not valid_file_identity(entry.get("path"), entry.get("sha256"))
+                    or entry["path"] in manifest_files):
+                raise InstallationError(f"Invalid {PUBLIC_MANIFEST} file entry")
+            manifest_files[entry["path"]] = (entry["sha256"], entry["executable"])
+        validate_source_hashes(
+            {name: value[0] for name, value in manifest_files.items()},
+            source_files,
+            PUBLIC_MANIFEST,
+        )
+        for name, (_data, executable) in source_files.items():
+            if manifest_files[name][1] != executable:
+                raise InstallationError(
+                    f"{PUBLIC_MANIFEST} has the wrong file mode for: {name}"
+                )
+        return {
+            "public_release_repository": PUBLIC_REPOSITORY,
+            "source_kind": "public-release",
+            "source_manifest_sha256": digest(raw),
+            "source_revision": None,
+            "source_tree": None,
+        }, source_files
+    if has_identity:
+        try:
+            identity = json.loads(regular_bytes(identity_path))
+        except ValueError as error:
+            raise InstallationError("Invalid source SOURCE.json") from error
+        if (not isinstance(identity, dict) or set(identity) != VENDORED_IDENTITY_KEYS
+                or identity.get("authoritative_repository") != AUTHORITATIVE_REPOSITORY
+                or identity.get("component") != COMPONENT
+                or identity.get("source") != COMPONENT
+                or identity.get("version") != version
+                or identity.get("public_release_repository") != PUBLIC_REPOSITORY_IDENTIFIER
+                or identity.get("vendored_snapshot") != VENDORED_SNAPSHOT):
+            raise InstallationError("SOURCE.json does not identify this Programming Loop release")
+        revision = identity.get("source_revision")
+        tree = identity.get("source_tree")
+        if (not isinstance(revision, str) or not re.fullmatch(r"[0-9a-f]{40}", revision)
+                or not isinstance(tree, str) or not re.fullmatch(r"[0-9a-f]{40}", tree)):
+            raise InstallationError("SOURCE.json contains an invalid source revision or tree")
+        source_files = package_files(source, "SOURCE.json")
+        validate_source_hashes(identity["files"], source_files, "SOURCE.json")
+        if git_tree_id(source_files) != tree:
+            raise InstallationError("SOURCE.json source tree does not match the supplied package")
+        return {
+            "public_release_repository": PUBLIC_REPOSITORY,
+            "source_kind": "vendored-snapshot",
+            "source_manifest_sha256": None,
+            "source_revision": revision,
+            "source_tree": tree,
+        }, source_files
+    return {
+        "public_release_repository": PUBLIC_REPOSITORY,
+        "source_kind": "development-checkout",
+        "source_manifest_sha256": None,
+        "source_revision": None,
+        "source_tree": None,
+    }, None
+
+
 def payload(source: Path, host: str) -> tuple[dict[str, bytes], bytes | None]:
-    version = regular_bytes(source / "VERSION").decode("utf-8").strip()
+    version_bytes = regular_bytes(source / "VERSION")
+    version = version_bytes.decode("utf-8").strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?", version):
         raise InstallationError("VERSION must identify a release, such as 1.0.0")
-    entry = regular_bytes(source / "skills/programming-loop/SKILL.md")
+    provenance, verified_files = package_provenance(source, version)
+    if verified_files is not None and verified_files["VERSION"][0] != version_bytes:
+        raise InstallationError("The source package changed during validation")
+
+    def source_bytes(name: str) -> bytes:
+        if verified_files is not None:
+            return verified_files[name][0]
+        return regular_bytes(source / name)
+
+    entry_path = "skills/programming-loop/SKILL.md"
+    source_entry = source_bytes(entry_path)
     framework_link = b"`../../frameworks/programming-loop.md`"
     adapter_link = b"`../../adapters/`"
-    if entry.count(framework_link) != 1 or entry.count(adapter_link) != 1:
+    if source_entry.count(framework_link) != 1 or source_entry.count(adapter_link) != 1:
         raise InstallationError("The Programming Loop entry has unexpected resource links")
-    entry = entry.replace(framework_link, b"`./frameworks/programming-loop.md`")
+    entry = source_entry.replace(framework_link, b"`./frameworks/programming-loop.md`")
     entry = entry.replace(adapter_link, f"`./adapters/{host}.md`".encode())
     paths = {
         "VERSION": "VERSION",
@@ -74,21 +300,23 @@ def payload(source: Path, host: str) -> tuple[dict[str, bytes], bytes | None]:
         "LICENSE": "LICENSE",
         "NOTICE.md": "NOTICE.md",
     }
-    files = {name: regular_bytes(source / path) for name, path in paths.items()}
+    files = {name: source_bytes(path) for name, path in paths.items()}
     files["SKILL.md"] = entry
     if any(not value.strip() for value in files.values()):
         raise InstallationError("A required component resource is empty")
     profile = None
     if host in PROFILE_HOSTS:
-        profile = regular_bytes(source / "profiles" / host / PROFILE)
+        profile_path = f"profiles/{host}/{PROFILE}"
+        profile = source_bytes(profile_path)
         if not profile.strip():
             raise InstallationError("The required native reviewer profile is empty")
-        files[f"profiles/{host}/{PROFILE}"] = profile
+        files[profile_path] = profile
     identity = {
         "component": COMPONENT,
         "version": version,
         "source": COMPONENT,
         "host": host,
+        **provenance,
         "files": {name: digest(data) for name, data in files.items()},
         "reviewer_sha256": digest(profile) if profile is not None else None,
     }
@@ -121,11 +349,31 @@ def read_identity(skill: Path, host: str) -> dict:
         raise InstallationError(f"Unexpected reviewer identity at {skill}")
     if not required.issubset(identity["files"]):
         raise InstallationError(f"Incomplete installed resource identity at {skill}")
+    provenance_keys = {
+        "public_release_repository", "source_kind", "source_manifest_sha256",
+        "source_revision", "source_tree",
+    }
+    if provenance_keys.intersection(identity):
+        kind = identity.get("source_kind")
+        manifest = identity.get("source_manifest_sha256")
+        revision = identity.get("source_revision")
+        tree = identity.get("source_tree")
+        if (not provenance_keys.issubset(identity)
+                or identity.get("public_release_repository") != PUBLIC_REPOSITORY
+                or kind not in {"public-release", "vendored-snapshot", "development-checkout"}
+                or (manifest is not None and (
+                    not isinstance(manifest, str) or not re.fullmatch(r"[0-9a-f]{64}", manifest)))
+                or (revision is None) != (tree is None)
+                or (revision is not None and (
+                    not isinstance(revision, str) or not re.fullmatch(r"[0-9a-f]{40}", revision)
+                    or not isinstance(tree, str) or not re.fullmatch(r"[0-9a-f]{40}", tree)))
+                or (kind == "public-release" and (manifest is None or revision is not None))
+                or (kind != "public-release" and manifest is not None)
+                or (kind == "vendored-snapshot" and revision is None)
+                or (kind == "development-checkout" and revision is not None)):
+            raise InstallationError(f"Invalid source provenance at {skill}")
     for name, expected in identity["files"].items():
-        path = PurePosixPath(name)
-        if (not isinstance(name, str) or path.is_absolute() or ".." in path.parts
-                or "\\" in name or str(path) != name or name == "SOURCE.json"
-                or not isinstance(expected, str) or not re.fullmatch(r"[0-9a-f]{64}", expected)):
+        if name == "SOURCE.json" or not valid_file_identity(name, expected):
             raise InstallationError(f"Invalid installed file identity at {skill}")
     return identity
 
@@ -393,7 +641,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--host", choices=HOSTS, required=True)
     parser.add_argument("--home", type=Path, help="User root (defaults to the current user's home)")
     parser.add_argument("--host-root", type=Path, help="Explicit selected host/profile root; overrides --home")
-    parser.add_argument("--source", type=Path, default=SOURCE, help="Authoritative Programming Loop release root")
+    parser.add_argument(
+        "--source", type=Path, default=SOURCE,
+        help=f"Programming Loop release or vendored source folder; public updates: {PUBLIC_REPOSITORY}",
+    )
     args = parser.parse_args(argv)
     try:
         root = host_directory(args.host, args.home, args.host_root)

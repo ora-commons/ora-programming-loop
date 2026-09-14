@@ -40,8 +40,12 @@ component is installed.
 | `scripts/install.py` | Transactional install, update, and removal command. |
 | `VERSION` | Component release identity. |
 
-The canonical component lives here. A product that embeds it should generate
-its copy and retain source identity rather than hand-editing a mirror.
+The private `Golfplan18/ora-programming-loop` repository is the sole authoritative
+Programming Loop source. The
+[ora-commons/ora-programming-loop](https://github.com/ora-commons/ora-programming-loop)
+repository is its public source and update route. Public releases, product-embedded
+snapshots, and installed copies retain available provenance, but are not canonical
+authorities and should not be hand-edited as mirrors.
 
 ## Supported hosts
 

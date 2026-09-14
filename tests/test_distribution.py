@@ -24,8 +24,56 @@ class DistributionTests(unittest.TestCase):
 
     def copy_source(self):
         source = self.base / "release"
-        shutil.copytree(ROOT, source, ignore=shutil.ignore_patterns("__pycache__"))
+        shutil.copytree(ROOT, source, ignore=shutil.ignore_patterns("__pycache__", ".git"))
         return source
+
+    def package_entries(self, source):
+        return {
+            name: (
+                (source / name).read_bytes(),
+                bool((source / name).stat().st_mode & 0o111),
+            )
+            for name in installer.PRODUCT_PATHS
+        }
+
+    def write_vendored_identity(self, source):
+        entries = self.package_entries(source)
+        tree = installer.git_tree_id(entries)
+        commit = (
+            f"tree {tree}\n"
+            "author Programming Loop Test <test@example.invalid> 0 +0000\n"
+            "committer Programming Loop Test <test@example.invalid> 0 +0000\n"
+            "\npackage fixture\n"
+        ).encode()
+        identity = {
+            "authoritative_repository": installer.AUTHORITATIVE_REPOSITORY,
+            "component": "programming-loop",
+            "files": {name: installer.digest(data) for name, (data, _mode) in entries.items()},
+            "public_release_repository": installer.PUBLIC_REPOSITORY_IDENTIFIER,
+            "source": "programming-loop",
+            "source_revision": installer.git_object_id("commit", commit).hex(),
+            "source_tree": tree,
+            "vendored_snapshot": installer.VENDORED_SNAPSHOT,
+            "version": (source / "VERSION").read_text().strip(),
+        }
+        (source / "SOURCE.json").write_text(json.dumps(identity), encoding="utf-8")
+        return identity
+
+    def write_public_manifest(self, source):
+        manifest = {
+            "version": 1,
+            "files": [
+                {
+                    "path": name,
+                    "sha256": installer.digest(data),
+                    "executable": executable,
+                }
+                for name, (data, executable) in sorted(self.package_entries(source).items())
+            ],
+        }
+        raw = (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode()
+        (source / installer.PUBLIC_MANIFEST).write_bytes(raw)
+        return manifest, raw
 
     def assert_no_staging(self, host):
         root = self.home / installer.HOSTS[host]
@@ -53,6 +101,11 @@ class DistributionTests(unittest.TestCase):
                     self.assertEqual(identity["source"], "programming-loop")
                     self.assertEqual(identity["host"], host)
                     self.assertEqual(identity["version"], (ROOT / "VERSION").read_text().strip())
+                    self.assertEqual(identity["public_release_repository"], installer.PUBLIC_REPOSITORY)
+                    self.assertEqual(identity["source_kind"], "development-checkout")
+                    self.assertIsNone(identity["source_manifest_sha256"])
+                    self.assertIsNone(identity["source_revision"])
+                    self.assertIsNone(identity["source_tree"])
                     for name in ("frameworks/programming-loop.md", f"adapters/{host}.md", "VERSION"):
                         self.assertEqual((skill / name).read_bytes(), (ROOT / name).read_bytes())
                     source_entry = (ROOT / "skills/programming-loop/SKILL.md").read_bytes()
@@ -67,6 +120,8 @@ class DistributionTests(unittest.TestCase):
                                      skill / f"adapters/{host}.md"):
                         self.assertTrue(resource.is_file(), resource)
                         self.assertTrue(resource.read_text(encoding="utf-8").strip(), resource)
+                    self.assertIn(installer.PUBLIC_REPOSITORY,
+                                  (skill / "README.md").read_text(encoding="utf-8"))
                     self.assertEqual(list((skill / "adapters").glob("*.md")), [skill / f"adapters/{host}.md"])
                     self.assertFalse(installer.inspect_installation(self.home / installer.HOSTS[host], host)["mismatches"])
                     if host in installer.PROFILE_HOSTS:
@@ -79,6 +134,11 @@ class DistributionTests(unittest.TestCase):
         skill = installer.install(source, "claude", self.home)
         extra = skill / "user-notes.txt"
         extra.write_text("Keep my notes", encoding="utf-8")
+        legacy_identity = json.loads((skill / "SOURCE.json").read_text())
+        for name in ("public_release_repository", "source_kind", "source_manifest_sha256",
+                     "source_revision", "source_tree"):
+            legacy_identity.pop(name)
+        (skill / "SOURCE.json").write_text(json.dumps(legacy_identity), encoding="utf-8")
         (source / "VERSION").write_text("1.0.1\n", encoding="utf-8")
         (source / "frameworks/programming-loop.md").write_text("# Replacement complete method\n", encoding="utf-8")
         installer.install(source, "claude", self.home)
@@ -87,6 +147,180 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual((skill / "frameworks/programming-loop.md").read_bytes(),
                          (source / "frameworks/programming-loop.md").read_bytes())
         self.assert_no_staging("claude")
+
+    def test_installed_identity_retains_available_package_provenance(self):
+        source = self.copy_source()
+        source_identity = self.write_vendored_identity(source)
+
+        vendored = installer.install(source, "codex", self.home)
+        identity = json.loads((vendored / "SOURCE.json").read_text())
+        self.assertEqual(identity["public_release_repository"], installer.PUBLIC_REPOSITORY)
+        self.assertEqual(identity["source_kind"], "vendored-snapshot")
+        self.assertEqual(identity["source_revision"], source_identity["source_revision"])
+        self.assertEqual(identity["source_tree"], source_identity["source_tree"])
+        self.assertIsNone(identity["source_manifest_sha256"])
+        self.assertNotIn("authoritative_repository", identity)
+
+        public_source = self.base / "public-release"
+        shutil.copytree(ROOT, public_source,
+                        ignore=shutil.ignore_patterns("__pycache__", ".git"))
+        _manifest, manifest_bytes = self.write_public_manifest(public_source)
+        released = installer.install(public_source, "hermes", self.home)
+        identity = json.loads((released / "SOURCE.json").read_text())
+        self.assertEqual(identity["public_release_repository"], installer.PUBLIC_REPOSITORY)
+        self.assertEqual(identity["source_kind"], "public-release")
+        self.assertEqual(identity["source_manifest_sha256"], installer.digest(manifest_bytes))
+        self.assertIsNone(identity["source_revision"])
+        self.assertIsNone(identity["source_tree"])
+
+    def test_public_release_ignores_root_git_metadata_but_preserves_destination_on_extra(self):
+        root = self.home / installer.HOSTS["minimax"]
+        for kind in ("directory", "gitfile"):
+            with self.subTest(kind=kind):
+                source = self.base / f"public-clone-{kind}"
+                shutil.copytree(ROOT, source,
+                                ignore=shutil.ignore_patterns("__pycache__", ".git"))
+                self.write_public_manifest(source)
+                git_metadata = source / ".git"
+                if kind == "directory":
+                    git_metadata.mkdir()
+                else:
+                    git_metadata.write_text("gitdir: /test/repository\n", encoding="utf-8")
+
+                skill = installer.install(source, "minimax", self.home)
+                self.assertTrue(skill.is_dir())
+                self.assertEqual(
+                    json.loads((skill / "SOURCE.json").read_text())["source_kind"],
+                    "public-release",
+                )
+                preserved = self.tree_bytes(root)
+                (source / "unexpected.txt").write_text("not package content\n", encoding="utf-8")
+                with self.assertRaisesRegex(installer.InstallationError, "unexpected resource"):
+                    installer.install(source, "minimax", self.home)
+                self.assertEqual(self.tree_bytes(root), preserved)
+                self.assert_no_staging("minimax")
+
+    def test_public_release_rejects_nested_git_metadata_before_replacement(self):
+        root = self.home / installer.HOSTS["minimax"]
+        installer.install(ROOT, "minimax", self.home)
+        preserved = self.tree_bytes(root)
+
+        source = self.copy_source()
+        self.write_public_manifest(source)
+        (source / "subdir" / ".git").mkdir(parents=True)
+
+        with self.assertRaisesRegex(installer.InstallationError, "nested Git control metadata"):
+            installer.install(source, "minimax", self.home)
+        self.assertEqual(self.tree_bytes(root), preserved)
+        self.assert_no_staging("minimax")
+
+    def test_untrusted_package_provenance_is_rejected_before_replacement(self):
+        root = self.home / installer.HOSTS["minimax"]
+        installer.install(ROOT, "minimax", self.home)
+        preserved = self.tree_bytes(root)
+
+        def assert_rejected(source, pattern):
+            with self.assertRaisesRegex(installer.InstallationError, pattern):
+                installer.install(source, "minimax", self.home)
+            self.assertEqual(self.tree_bytes(root), preserved)
+            self.assert_no_staging("minimax")
+
+        cases = []
+
+        incomplete = self.base / "incomplete-vendored"
+        shutil.copytree(ROOT, incomplete, ignore=shutil.ignore_patterns("__pycache__", ".git"))
+        metadata = self.write_vendored_identity(incomplete)
+        metadata.pop("source_revision")
+        (incomplete / "SOURCE.json").write_text(json.dumps(metadata), encoding="utf-8")
+        cases.append(("incomplete vendored identity", incomplete, "does not identify"))
+
+        self_attested = self.base / "self-attested-vendored"
+        shutil.copytree(ROOT, self_attested,
+                        ignore=shutil.ignore_patterns("__pycache__", ".git"))
+        metadata = self.write_vendored_identity(self_attested)
+        metadata["source_tree"] = "2" * 40
+        (self_attested / "SOURCE.json").write_text(json.dumps(metadata), encoding="utf-8")
+        cases.append(("invented source tree", self_attested, "source tree does not match"))
+
+        for field, wrong in (
+                ("authoritative_repository", "ora-commons/ora-programming-loop"),
+                ("public_release_repository", installer.PUBLIC_REPOSITORY),
+                ("vendored_snapshot", "programming-loop")):
+            wrong_repository = self.base / f"wrong-{field}"
+            shutil.copytree(ROOT, wrong_repository,
+                            ignore=shutil.ignore_patterns("__pycache__", ".git"))
+            metadata = self.write_vendored_identity(wrong_repository)
+            metadata[field] = wrong
+            (wrong_repository / "SOURCE.json").write_text(
+                json.dumps(metadata), encoding="utf-8"
+            )
+            cases.append((f"wrong {field}", wrong_repository, "does not identify"))
+
+        tampered = self.base / "tampered-vendored"
+        shutil.copytree(ROOT, tampered, ignore=shutil.ignore_patterns("__pycache__", ".git"))
+        metadata = self.write_vendored_identity(tampered)
+        (tampered / "README.md").write_text("tampered but rehashed\n", encoding="utf-8")
+        metadata["files"]["README.md"] = installer.digest((tampered / "README.md").read_bytes())
+        (tampered / "SOURCE.json").write_text(json.dumps(metadata), encoding="utf-8")
+        cases.append(("tampered content with rewritten hash", tampered,
+                      "source tree does not match"))
+
+        missing = self.base / "missing-vendored"
+        shutil.copytree(ROOT, missing, ignore=shutil.ignore_patterns("__pycache__", ".git"))
+        metadata = self.write_vendored_identity(missing)
+        (missing / "adapters/zcode.md").unlink()
+        metadata["files"].pop("adapters/zcode.md")
+        (missing / "SOURCE.json").write_text(json.dumps(metadata), encoding="utf-8")
+        cases.append(("missing file and identity", missing, "missing package resources"))
+
+        extra = self.base / "extra-vendored"
+        shutil.copytree(ROOT, extra, ignore=shutil.ignore_patterns("__pycache__", ".git"))
+        metadata = self.write_vendored_identity(extra)
+        (extra / "untracked.txt").write_text("not part of the package\n", encoding="utf-8")
+        metadata["files"]["untracked.txt"] = installer.digest(
+            (extra / "untracked.txt").read_bytes()
+        )
+        (extra / "SOURCE.json").write_text(json.dumps(metadata), encoding="utf-8")
+        cases.append(("extra file and identity", extra, "unexpected resource"))
+
+        linked = self.base / "symlinked-vendored"
+        shutil.copytree(ROOT, linked, ignore=shutil.ignore_patterns("__pycache__", ".git"))
+        self.write_vendored_identity(linked)
+        (linked / "adapters/zcode.md").unlink()
+        (linked / "adapters/zcode.md").symlink_to("codex.md")
+        cases.append(("symbolic-link resource", linked, "symbolic link"))
+
+        mode_changed = self.base / "mode-vendored"
+        shutil.copytree(ROOT, mode_changed,
+                        ignore=shutil.ignore_patterns("__pycache__", ".git"))
+        self.write_vendored_identity(mode_changed)
+        (mode_changed / "README.md").chmod(0o755)
+        cases.append(("changed file mode", mode_changed, "source tree does not match"))
+
+        public_missing = self.base / "public-missing-entry"
+        shutil.copytree(ROOT, public_missing,
+                        ignore=shutil.ignore_patterns("__pycache__", ".git"))
+        manifest, _raw = self.write_public_manifest(public_missing)
+        manifest["files"].pop()
+        (public_missing / installer.PUBLIC_MANIFEST).write_text(
+            json.dumps(manifest), encoding="utf-8"
+        )
+        cases.append(("incomplete public manifest", public_missing,
+                      "exact Programming Loop package"))
+
+        public_mode = self.base / "public-mode-mismatch"
+        shutil.copytree(ROOT, public_mode,
+                        ignore=shutil.ignore_patterns("__pycache__", ".git"))
+        manifest, _raw = self.write_public_manifest(public_mode)
+        manifest["files"][0]["executable"] = not manifest["files"][0]["executable"]
+        (public_mode / installer.PUBLIC_MANIFEST).write_text(
+            json.dumps(manifest), encoding="utf-8"
+        )
+        cases.append(("public manifest mode mismatch", public_mode, "wrong file mode"))
+
+        for label, rejected_source, pattern in cases:
+            with self.subTest(case=label):
+                assert_rejected(rejected_source, pattern)
 
     def test_failed_preparation_preserves_usable_installation(self):
         source = self.copy_source()

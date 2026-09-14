@@ -13,7 +13,7 @@
     {
       "executable": false,
       "path": "README.md",
-      "sha256": "83a033c239523a2911409b1fd91fed050627602b41d3c37a93c975cd4a5112bd"
+      "sha256": "3f4ec3918e098061635ad671ffe583b6a3cdf5a90f428de6da37e69e42cc22aa"
     },
     {
       "executable": false,
@@ -73,7 +73,7 @@
     {
       "executable": false,
       "path": "scripts/install.py",
-      "sha256": "b06fb810dd88292d53197ff6434631fb034108f35baab7e68366909be164316e"
+      "sha256": "8c2e53832d03e6afef6b62dc97d1d4379d0210aced6e0fc433ea6da83d521272"
     },
     {
       "executable": false,
@@ -83,7 +83,7 @@
     {
       "executable": false,
       "path": "tests/test_distribution.py",
-      "sha256": "f50b271ccec1ad18d8d10a4e0d8483ddf62a1d49a1ff21e3d76ca9d8b976ae9f"
+      "sha256": "9a4d63c6c16d4aab070d06e8ccbb411f2c733d221153ebb4f3ab3edcef4a79f0"
     }
   ],
   "version": 1
