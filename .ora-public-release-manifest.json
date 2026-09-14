@@ -73,7 +73,7 @@
     {
       "executable": false,
       "path": "scripts/install.py",
-      "sha256": "8c2e53832d03e6afef6b62dc97d1d4379d0210aced6e0fc433ea6da83d521272"
+      "sha256": "f772e4e8246a80fc3efcb99e5aeff112ef3a6c17776f418d3c787ffa54fbcc94"
     },
     {
       "executable": false,
@@ -83,7 +83,7 @@
     {
       "executable": false,
       "path": "tests/test_distribution.py",
-      "sha256": "9a4d63c6c16d4aab070d06e8ccbb411f2c733d221153ebb4f3ab3edcef4a79f0"
+      "sha256": "9c0d7acd69ca592952f881aa85eb66b2d0f44c8fa546e4c89e0bfe22c00f0cbe"
     }
   ],
   "version": 1

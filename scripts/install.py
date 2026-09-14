@@ -613,9 +613,9 @@ def remove(host: str, home: Path | None = None,
                 os.replace(reviewer, original_profile)
         except BaseException:
             try:
-                if skill.exists():
-                    shutil.rmtree(skill)
                 if original_skill.exists():
+                    if skill.exists():
+                        shutil.rmtree(skill)
                     skill.parent.mkdir(parents=True, exist_ok=True)
                     os.replace(original_skill, skill)
                 if original_profile.exists():

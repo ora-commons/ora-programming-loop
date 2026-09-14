@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -11,7 +12,14 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("loop_install", ROOT / "scripts/install.py")
 installer = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(installer)
+with mock.patch.object(sys, "dont_write_bytecode", True):
+    SPEC.loader.exec_module(installer)
+# unittest discovery writes this module's cache before executing it. Remove only
+# that cache so running the shipped tests does not alter a strict public package.
+test_cache = Path(importlib.util.cache_from_source(__file__))
+test_cache.unlink(missing_ok=True)
+if test_cache.parent.is_dir() and not any(test_cache.parent.iterdir()):
+    test_cache.parent.rmdir()
 
 
 class DistributionTests(unittest.TestCase):
@@ -22,9 +30,13 @@ class DistributionTests(unittest.TestCase):
         self.home = self.base / "user space 雪"
         self.home.mkdir()
 
-    def copy_source(self):
-        source = self.base / "release"
-        shutil.copytree(ROOT, source, ignore=shutil.ignore_patterns("__pycache__", ".git"))
+    def copy_source(self, name="release"):
+        # A development fixture has neither release nor vendored provenance.
+        source = self.base / name
+        for relative in installer.PRODUCT_PATHS:
+            target = source / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(ROOT / relative, target)
         return source
 
     def package_entries(self, source):
@@ -37,6 +49,7 @@ class DistributionTests(unittest.TestCase):
         }
 
     def write_vendored_identity(self, source):
+        (source / installer.PUBLIC_MANIFEST).unlink(missing_ok=True)
         entries = self.package_entries(source)
         tree = installer.git_tree_id(entries)
         commit = (
@@ -60,6 +73,7 @@ class DistributionTests(unittest.TestCase):
         return identity
 
     def write_public_manifest(self, source):
+        (source / "SOURCE.json").unlink(missing_ok=True)
         manifest = {
             "version": 1,
             "files": [
@@ -86,6 +100,21 @@ class DistributionTests(unittest.TestCase):
         }
 
     def test_all_selected_hosts_load_complete_identified_method_without_calls(self):
+        manifest_path = ROOT / installer.PUBLIC_MANIFEST
+        source_identity_path = ROOT / "SOURCE.json"
+        if manifest_path.exists():
+            source_kind = "public-release"
+            manifest_sha256 = installer.digest(manifest_path.read_bytes())
+            source_revision = source_tree = None
+        elif source_identity_path.exists():
+            source_identity = json.loads(source_identity_path.read_text())
+            source_kind = "vendored-snapshot"
+            manifest_sha256 = None
+            source_revision = source_identity["source_revision"]
+            source_tree = source_identity["source_tree"]
+        else:
+            source_kind = "development-checkout"
+            manifest_sha256 = source_revision = source_tree = None
         fake_bin = self.base / "fake-bin"
         fake_bin.mkdir()
         for executable in ("codex", "claude", "zcode", "hermes", "qwen", "mcode"):
@@ -102,10 +131,10 @@ class DistributionTests(unittest.TestCase):
                     self.assertEqual(identity["host"], host)
                     self.assertEqual(identity["version"], (ROOT / "VERSION").read_text().strip())
                     self.assertEqual(identity["public_release_repository"], installer.PUBLIC_REPOSITORY)
-                    self.assertEqual(identity["source_kind"], "development-checkout")
-                    self.assertIsNone(identity["source_manifest_sha256"])
-                    self.assertIsNone(identity["source_revision"])
-                    self.assertIsNone(identity["source_tree"])
+                    self.assertEqual(identity["source_kind"], source_kind)
+                    self.assertEqual(identity["source_manifest_sha256"], manifest_sha256)
+                    self.assertEqual(identity["source_revision"], source_revision)
+                    self.assertEqual(identity["source_tree"], source_tree)
                     for name in ("frameworks/programming-loop.md", f"adapters/{host}.md", "VERSION"):
                         self.assertEqual((skill / name).read_bytes(), (ROOT / name).read_bytes())
                     source_entry = (ROOT / "skills/programming-loop/SKILL.md").read_bytes()
@@ -132,6 +161,8 @@ class DistributionTests(unittest.TestCase):
     def test_update_switches_complete_resources_and_preserves_user_additions(self):
         source = self.copy_source()
         skill = installer.install(source, "claude", self.home)
+        self.assertEqual(json.loads((skill / "SOURCE.json").read_text())["source_kind"],
+                         "development-checkout")
         extra = skill / "user-notes.txt"
         extra.write_text("Keep my notes", encoding="utf-8")
         legacy_identity = json.loads((skill / "SOURCE.json").read_text())
@@ -161,9 +192,7 @@ class DistributionTests(unittest.TestCase):
         self.assertIsNone(identity["source_manifest_sha256"])
         self.assertNotIn("authoritative_repository", identity)
 
-        public_source = self.base / "public-release"
-        shutil.copytree(ROOT, public_source,
-                        ignore=shutil.ignore_patterns("__pycache__", ".git"))
+        public_source = self.copy_source("public-release")
         _manifest, manifest_bytes = self.write_public_manifest(public_source)
         released = installer.install(public_source, "hermes", self.home)
         identity = json.loads((released / "SOURCE.json").read_text())
@@ -173,13 +202,38 @@ class DistributionTests(unittest.TestCase):
         self.assertIsNone(identity["source_revision"])
         self.assertIsNone(identity["source_tree"])
 
+    def test_public_package_update_requires_manifest_for_current_bytes(self):
+        source = self.copy_source()
+        self.write_public_manifest(source)
+        self.assertEqual(set(self.tree_bytes(source)),
+                         installer.PRODUCT_PATHS | {installer.PUBLIC_MANIFEST})
+        skill = installer.install(source, "hermes", self.home)
+        root = self.home / installer.HOSTS["hermes"]
+        preserved = self.tree_bytes(root)
+        (source / "VERSION").write_text("1.0.1\n", encoding="utf-8")
+        (source / "frameworks/programming-loop.md").write_text(
+            "# Replacement complete method\n", encoding="utf-8"
+        )
+        with self.assertRaisesRegex(installer.InstallationError, "supplied resource"):
+            installer.install(source, "hermes", self.home)
+        self.assertEqual(self.tree_bytes(root), preserved)
+        self.assert_no_staging("hermes")
+
+        _manifest, manifest_bytes = self.write_public_manifest(source)
+        installer.install(source, "hermes", self.home)
+        identity = json.loads((skill / "SOURCE.json").read_text())
+        self.assertEqual(identity["source_kind"], "public-release")
+        self.assertEqual(identity["source_manifest_sha256"], installer.digest(manifest_bytes))
+        self.assertEqual((skill / "VERSION").read_text(), "1.0.1\n")
+        self.assertEqual((skill / "frameworks/programming-loop.md").read_bytes(),
+                         (source / "frameworks/programming-loop.md").read_bytes())
+        self.assert_no_staging("hermes")
+
     def test_public_release_ignores_root_git_metadata_but_preserves_destination_on_extra(self):
         root = self.home / installer.HOSTS["minimax"]
         for kind in ("directory", "gitfile"):
             with self.subTest(kind=kind):
-                source = self.base / f"public-clone-{kind}"
-                shutil.copytree(ROOT, source,
-                                ignore=shutil.ignore_patterns("__pycache__", ".git"))
+                source = self.copy_source(f"public-clone-{kind}")
                 self.write_public_manifest(source)
                 git_metadata = source / ".git"
                 if kind == "directory":
@@ -227,16 +281,13 @@ class DistributionTests(unittest.TestCase):
 
         cases = []
 
-        incomplete = self.base / "incomplete-vendored"
-        shutil.copytree(ROOT, incomplete, ignore=shutil.ignore_patterns("__pycache__", ".git"))
+        incomplete = self.copy_source("incomplete-vendored")
         metadata = self.write_vendored_identity(incomplete)
         metadata.pop("source_revision")
         (incomplete / "SOURCE.json").write_text(json.dumps(metadata), encoding="utf-8")
         cases.append(("incomplete vendored identity", incomplete, "does not identify"))
 
-        self_attested = self.base / "self-attested-vendored"
-        shutil.copytree(ROOT, self_attested,
-                        ignore=shutil.ignore_patterns("__pycache__", ".git"))
+        self_attested = self.copy_source("self-attested-vendored")
         metadata = self.write_vendored_identity(self_attested)
         metadata["source_tree"] = "2" * 40
         (self_attested / "SOURCE.json").write_text(json.dumps(metadata), encoding="utf-8")
@@ -246,9 +297,7 @@ class DistributionTests(unittest.TestCase):
                 ("authoritative_repository", "ora-commons/ora-programming-loop"),
                 ("public_release_repository", installer.PUBLIC_REPOSITORY),
                 ("vendored_snapshot", "programming-loop")):
-            wrong_repository = self.base / f"wrong-{field}"
-            shutil.copytree(ROOT, wrong_repository,
-                            ignore=shutil.ignore_patterns("__pycache__", ".git"))
+            wrong_repository = self.copy_source(f"wrong-{field}")
             metadata = self.write_vendored_identity(wrong_repository)
             metadata[field] = wrong
             (wrong_repository / "SOURCE.json").write_text(
@@ -256,8 +305,7 @@ class DistributionTests(unittest.TestCase):
             )
             cases.append((f"wrong {field}", wrong_repository, "does not identify"))
 
-        tampered = self.base / "tampered-vendored"
-        shutil.copytree(ROOT, tampered, ignore=shutil.ignore_patterns("__pycache__", ".git"))
+        tampered = self.copy_source("tampered-vendored")
         metadata = self.write_vendored_identity(tampered)
         (tampered / "README.md").write_text("tampered but rehashed\n", encoding="utf-8")
         metadata["files"]["README.md"] = installer.digest((tampered / "README.md").read_bytes())
@@ -265,16 +313,14 @@ class DistributionTests(unittest.TestCase):
         cases.append(("tampered content with rewritten hash", tampered,
                       "source tree does not match"))
 
-        missing = self.base / "missing-vendored"
-        shutil.copytree(ROOT, missing, ignore=shutil.ignore_patterns("__pycache__", ".git"))
+        missing = self.copy_source("missing-vendored")
         metadata = self.write_vendored_identity(missing)
         (missing / "adapters/zcode.md").unlink()
         metadata["files"].pop("adapters/zcode.md")
         (missing / "SOURCE.json").write_text(json.dumps(metadata), encoding="utf-8")
         cases.append(("missing file and identity", missing, "missing package resources"))
 
-        extra = self.base / "extra-vendored"
-        shutil.copytree(ROOT, extra, ignore=shutil.ignore_patterns("__pycache__", ".git"))
+        extra = self.copy_source("extra-vendored")
         metadata = self.write_vendored_identity(extra)
         (extra / "untracked.txt").write_text("not part of the package\n", encoding="utf-8")
         metadata["files"]["untracked.txt"] = installer.digest(
@@ -283,23 +329,18 @@ class DistributionTests(unittest.TestCase):
         (extra / "SOURCE.json").write_text(json.dumps(metadata), encoding="utf-8")
         cases.append(("extra file and identity", extra, "unexpected resource"))
 
-        linked = self.base / "symlinked-vendored"
-        shutil.copytree(ROOT, linked, ignore=shutil.ignore_patterns("__pycache__", ".git"))
+        linked = self.copy_source("symlinked-vendored")
         self.write_vendored_identity(linked)
         (linked / "adapters/zcode.md").unlink()
         (linked / "adapters/zcode.md").symlink_to("codex.md")
         cases.append(("symbolic-link resource", linked, "symbolic link"))
 
-        mode_changed = self.base / "mode-vendored"
-        shutil.copytree(ROOT, mode_changed,
-                        ignore=shutil.ignore_patterns("__pycache__", ".git"))
+        mode_changed = self.copy_source("mode-vendored")
         self.write_vendored_identity(mode_changed)
         (mode_changed / "README.md").chmod(0o755)
         cases.append(("changed file mode", mode_changed, "source tree does not match"))
 
-        public_missing = self.base / "public-missing-entry"
-        shutil.copytree(ROOT, public_missing,
-                        ignore=shutil.ignore_patterns("__pycache__", ".git"))
+        public_missing = self.copy_source("public-missing-entry")
         manifest, _raw = self.write_public_manifest(public_missing)
         manifest["files"].pop()
         (public_missing / installer.PUBLIC_MANIFEST).write_text(
@@ -308,9 +349,7 @@ class DistributionTests(unittest.TestCase):
         cases.append(("incomplete public manifest", public_missing,
                       "exact Programming Loop package"))
 
-        public_mode = self.base / "public-mode-mismatch"
-        shutil.copytree(ROOT, public_mode,
-                        ignore=shutil.ignore_patterns("__pycache__", ".git"))
+        public_mode = self.copy_source("public-mode-mismatch")
         manifest, _raw = self.write_public_manifest(public_mode)
         manifest["files"][0]["executable"] = not manifest["files"][0]["executable"]
         (public_mode / installer.PUBLIC_MANIFEST).write_text(
@@ -404,21 +443,57 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual(extra.read_text(), "user note")
         edited.write_bytes(original_edited)
 
+        skill.chmod(0o750)
+        extra.chmod(0o640)
+        preserved = self.tree_bytes(root)
+        preserved_modes = {
+            str(path.relative_to(root)): path.stat().st_mode
+            for path in root.rglob("*")
+        }
         replace = os.replace
-        failed = False
+        for failed_target in ("original-skill", "original-profile"):
+            with self.subTest(failed_target=failed_target):
+                failed = False
 
-        def fail_profile_removal(src, dst):
-            nonlocal failed
-            if Path(dst).name == "original-profile" and not failed:
-                failed = True
-                raise OSError("injected failed removal")
-            return replace(src, dst)
+                def fail_removal(src, dst):
+                    nonlocal failed
+                    if Path(dst).name == failed_target and not failed:
+                        failed = True
+                        raise OSError("injected failed removal")
+                    return replace(src, dst)
 
-        with mock.patch.object(installer.os, "replace", side_effect=fail_profile_removal):
-            with self.assertRaisesRegex(OSError, "injected failed removal"):
+                with mock.patch.object(installer.os, "replace", side_effect=fail_removal):
+                    with self.assertRaisesRegex(OSError, "injected failed removal"):
+                        installer.remove("zcode", self.home)
+                self.assertTrue(failed)
+                self.assertEqual(self.tree_bytes(root), preserved)
+                self.assertEqual({
+                    str(path.relative_to(root)): path.stat().st_mode
+                    for path in root.rglob("*")
+                }, preserved_modes)
+                self.assertFalse(installer.inspect_installation(root, "zcode")["mismatches"])
+                self.assert_no_staging("zcode")
+
+        interrupted = False
+
+        def interrupt_after_skill_removal(src, dst):
+            nonlocal interrupted
+            result = replace(src, dst)
+            if Path(dst).name == "original-skill" and not interrupted:
+                interrupted = True
+                raise KeyboardInterrupt("injected interruption")
+            return result
+
+        with mock.patch.object(installer.os, "replace", side_effect=interrupt_after_skill_removal):
+            with self.assertRaisesRegex(KeyboardInterrupt, "injected interruption"):
                 installer.remove("zcode", self.home)
+        self.assertTrue(interrupted)
+        self.assertEqual(self.tree_bytes(root), preserved)
+        self.assertEqual({
+            str(path.relative_to(root)): path.stat().st_mode
+            for path in root.rglob("*")
+        }, preserved_modes)
         self.assertFalse(installer.inspect_installation(root, "zcode")["mismatches"])
-        self.assertEqual(extra.read_text(), "user note")
         self.assert_no_staging("zcode")
 
         retained = installer.remove("zcode", self.home)
