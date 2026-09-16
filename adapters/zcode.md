@@ -12,7 +12,8 @@ profile for review when profile selection is available.
 
 Set tool access explicitly for the assignment. Reviewer profiles omit ordinary
 write/edit tools, but the coordinator still verifies the actual host tool list
-and states the read-only boundary. Run executor and reviewer serially.
+and states the read-only boundary. Run the executor and the acceptance reviewer
+serially; the framework's supervision runs while the executor is busy.
 
 ## Completion and waiting
 
@@ -21,6 +22,7 @@ launch acknowledgement is not an implementation or review result. Use native
 completion and messaging operations to retrieve the result, then inspect the
 working tree before continuing.
 
-Perform the hourly health check between slices. Do not create a scheduler unless
-the user explicitly asks, and remove any task-owned scheduled watchdog when the
-Loop ends. Never select another provider as a hidden fallback.
+Use the host's actual concurrent supervision and stop/report operations under
+the framework; a check queued until a busy executor returns is insufficient.
+Report unavailable operations rather than inventing them. End task-owned
+supervision with the Loop; never select another provider as a hidden fallback.

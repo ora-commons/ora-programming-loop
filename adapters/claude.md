@@ -18,9 +18,9 @@ prohibited effects, and repository scope in the prompt and inspect the result.
 ## Completion and waiting
 
 Read the agent's full returned response. A task identifier or completion
-notification is only a signal to collect the result. Schedule waits at natural
-slice boundaries; do not run executor and reviewer concurrently or detach an
-unbounded poller.
+notification is only a signal to collect the result. Use bounded waits that
+allow the framework's supervision while execution is busy. Acceptance review
+waits for stopped writers; do not detach an unbounded poller.
 
 Use only the configured authorized Claude route. Never switch silently to an
 API key, paid fallback, or different provider.

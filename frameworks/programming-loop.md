@@ -112,6 +112,8 @@ a fallback provider. If native dispatch is unavailable, a disclosed manual
 handoff is acceptable, but isolation and execution remain unestablished until
 the receiving context returns evidence.
 
+For a Vibe assignment, honor the supplied Ora Programming ownership-transfer rule instead of asking the user to manage worker conversations. Carry the exact supplied governing instructions, Specification, references, retained decisions, and acceptance criteria into every executor, reviewer, and supervisor packet. Require each recipient to open required materials before dependent work; report missing access.
+
 ## 3. Dispatch a clean executor
 
 ### Assignment integrity
@@ -157,6 +159,8 @@ Optional enrichment, decoration, or supplementary lookup should normally fail op
 
 If an edit or generator fails, preserve the previous recoverable artifact and remove only task-owned staging. If a command starts a background process, record it and end it as soon as its output is no longer needed. Never create an unbounded detached wait loop. A process belonging to another task is reported, not killed.
 
+Use one writer for a coupled foundation until independent acceptance. Thereafter use only path-exclusive parallel lanes and one writer per shared integration surface. Freeze all edit lanes before cumulative review.
+
 ## 4. Collect evidence
 
 Read the worker's actual returned result through the host mechanism. A launch
@@ -173,9 +177,9 @@ Inspect the real working tree. Capture:
 
 Do not accept a worker's summary in place of the candidate. Do not run a full
 suite, build, lint, audit, benchmark, or extra reassurance check unless it is
-named in the approved testing ceiling. If a new concrete material risk cannot
-be judged by that ceiling, preserve the candidate and request the smallest
-necessary authority change before running another check.
+named in the approved testing ceiling. An additional or repeated check must
+satisfy the supplied task's necessity rule; a material-risk label alone is not
+proof. Obtain any necessary authority change before running it.
 
 ## 5. Dispatch an independent reviewer
 
@@ -210,8 +214,8 @@ Review only for material defects. A defect is material when it can cause wrong
 user-visible behavior, an unmet approved criterion, content or data loss, a
 false claim, a real runtime or delivery failure, an unauthorized effect,
 broken atomicity, failed necessary recovery, a security exposure, or loss of
-protected work. Style preference, speculative hardening, tracking, preferred
-abstraction, or unrequested generality is not a rejection reason.
+protected work. Requests for added hardening, tracking, preferred abstraction,
+or unrequested generality, and style preferences, are not rejection reasons.
 
 Require exactly one leading outcome and concise evidence:
 
@@ -241,9 +245,11 @@ Before any authorized commit, inspect the complete staged diff and confirm only 
 An accepted slice commit is a recovery point, not proof that the project is complete. Later cumulative review may find a defect spanning slices. Correct it against the same baseline and review the whole current result. Never reset away accepted or user-owned work to simplify correction.
 
 On `FIX`, consolidate the complete current defect list and dispatch a new clean
-executor with the same plan and authority. Review the corrected cumulative
-candidate again with a new independent reviewer. Additional in-scope findings
-do not require new approval.
+executor with the same plan and authority; never resume the rejected executor
+for correction. Rejected implementation is evidence, not a code donor, except
+for items identified in independent acceptance evidence. Review the corrected
+cumulative candidate again with a new independent reviewer. Additional in-scope
+findings do not require new approval.
 
 On `CONTINUE`, commit the accepted coherent slice when the approved Git path
 allows it, then dispatch the next milestone from that rollback point. Never
@@ -267,22 +273,12 @@ blocker rather than looping indefinitely.
 
 ## 7. Supervise long-running work
 
-When execution remains active beyond 60 minutes, keep exactly one hourly,
-read-only health check attached to the coordinator. Use a bounded or scheduled
-host-native mechanism when available; otherwise inspect between slices. Never
-detach an unbounded poller or create a background workflow service.
-
-The health check examines recent progress plus read-only Git, process, and
-worktree state. It asks whether work advanced, scope or complexity grew beyond
-the plan, checks stayed within the ceiling, a routine wait became stale, or a
-task-owned process was orphaned. It records current diff size, checks since the
-last look, milestone, and remaining work.
-
-Healthy work is not interrupted. A concrete problem receives one specific,
-evidence-backed correction. Scope growth is preserved but held before commit;
-stale context is refreshed from the governing sources. Elapsed time alone is
-never a failure or an approval gate. End every task-owned monitor when execution
-ends.
+- Assign one independent supervisor using the reviewer responsibility (Vibe’s verifier role), outside the executing task. Use existing host operations so it can inspect and request a stop while the executor is busy; do not substitute a queued check inside that busy session. Confirm the actual stop/report route before dispatch; report a concrete host limitation if it is unavailable.
+- At each named milestone and after no more than 60 minutes of active work since the last inspection, require a safe stopping point within 15 more minutes; use the confirmed host stop route if that point is missed. Preserve recoverable work and confirm task-owned writers and mutating commands have stopped before inspection; interrupting an agent alone is not proof.
+- Inspect the cumulative diff and candidate against governing materials: drift, production/test growth, repeated check invocations, reference fidelity, rejected executor reuse, and attempted gate bypass. Every added component and test must serve an approved behavior; remove or consolidate unnecessary duplicate paths, replacement architecture, speculative helpers, compatibility layers, scaffolding, and private-detail tests through the executor.
+- Use existing check output to count invocations. A named test file is not unlimited authority. Additional or repeated checks must meet the governing task's proof and authority rules; stop when authorized checks and material review are satisfied.
+- Resume healthy work automatically after inspection. Route material defects through the existing correction procedure; involve the user only for an unresolved retained decision, necessary material deviation, or retained final inspection.
+- Keep the supervisor read-only: no product edits, tests, or commits. Use bounded host operations, no permanent service or detached poller, and end task-owned supervision when execution ends.
 
 ## 8. Finish, deliver, and recover
 
