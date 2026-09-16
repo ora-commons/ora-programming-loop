@@ -127,9 +127,11 @@ completion signal, and safe wait behavior. It must not restate or alter the
 universal method. Add installer wiring and a focused distribution check only
 when that new host is an actual supported product outcome.
 
-A host without a safe fresh-worker mechanism can still use the framework by
-manual copy-and-paste, but it must disclose that implementation or review
-isolation is unestablished. Never route silently through another provider.
+A host without a safe fresh-worker mechanism must disclose that implementation
+or review isolation is unestablished. Manual delivery remains available except
+where the supplied Vibe instructions require automatic Programming transfer;
+then report the host limitation instead of asking the user to manage workers.
+Never route silently through another provider.
 
 ## Operational truth
 

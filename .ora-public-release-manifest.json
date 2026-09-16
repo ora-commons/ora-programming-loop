@@ -13,17 +13,17 @@
     {
       "executable": false,
       "path": "README.md",
-      "sha256": "3f4ec3918e098061635ad671ffe583b6a3cdf5a90f428de6da37e69e42cc22aa"
+      "sha256": "672dc844f9f63aa4b0a9ef2370b822663c986c5646b73e8a17eba377fa72d7cb"
     },
     {
       "executable": false,
       "path": "VERSION",
-      "sha256": "59854984853104df5c353e2f681a15fc7924742f9a2e468c29af248dce45ce03"
+      "sha256": "44e161e4495cac2cf7858043e9e6418e9579f0ddcfae826f9a372622968ce066"
     },
     {
       "executable": false,
       "path": "adapters/claude.md",
-      "sha256": "4c6f4bcb836026f04a329e81d88d97a67693d0fce5cce6d4f8b1feee5ff35e89"
+      "sha256": "51392019479360daa9d2b2992752a5a4931b72f05997ab82a138829366eacb48"
     },
     {
       "executable": false,
@@ -48,12 +48,12 @@
     {
       "executable": false,
       "path": "adapters/zcode.md",
-      "sha256": "5f0217dce6fb4f267191d7f398a86666596a56c232178020c5888ec5b74dc465"
+      "sha256": "06fc9f5cae58f3d1b1078c604c67461bfee2e461dbfd56c00efa8842db5eb8d2"
     },
     {
       "executable": false,
       "path": "frameworks/programming-loop.md",
-      "sha256": "66b1fa787447a41a62a1af4150604b5a439c28daf84b9a333f7a3640bc86ade2"
+      "sha256": "4e10569ecc2d363ac4e90a63a6bfe635234c761c7bb283698bb9cab649099c9c"
     },
     {
       "executable": false,
