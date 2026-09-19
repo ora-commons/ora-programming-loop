@@ -18,7 +18,7 @@
     {
       "executable": false,
       "path": "VERSION",
-      "sha256": "44e161e4495cac2cf7858043e9e6418e9579f0ddcfae826f9a372622968ce066"
+      "sha256": "9fd28642d3aca191e5c7fc2383cfd6fabb2aac8743f029dabb8989ac584e31bc"
     },
     {
       "executable": false,
@@ -53,7 +53,7 @@
     {
       "executable": false,
       "path": "frameworks/programming-loop.md",
-      "sha256": "4e10569ecc2d363ac4e90a63a6bfe635234c761c7bb283698bb9cab649099c9c"
+      "sha256": "703d4c646fcdc23d4aa1d1f54ffc38459fd705b998db111b901186688ddfb328"
     },
     {
       "executable": false,
