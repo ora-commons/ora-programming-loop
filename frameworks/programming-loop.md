@@ -4,7 +4,7 @@
 
 Programming Loop completes bounded repository work through one approved plan, fresh implementation, independent review, correction, and the agreed delivery endpoint. The session running this framework is the **coordinator**.
 
-- The coordinator owns the plan, dispatch sequence, evidence, and final handback; it never treats preparing a prompt or opening a worker as proof that work happened.
+- The coordinator owns the plan, dispatch sequence, evidence, and final handback; it does not pretend that preparing a prompt or opening a worker proves that work happened.
 - Use the adapter for the initiating host together with this framework; the adapter supplies native tool names and isolation facts only.
 - If adapter text conflicts with this method, this framework controls unless a higher-priority user, repository, or host instruction says otherwise.
 - An approved plan authorizes only the outcome, scope, checks, and effects it actually names.
@@ -18,8 +18,10 @@ The Loop uses three responsibilities:
 - **Executor:** works in a fresh context on one coherent implementation or correction slice. It may inspect the whole repository but changes only the approved component and runs only the assigned checks.
 - **Reviewer:** works in a different fresh context. It independently inspects the plan, cumulative candidate, repository, and current evidence, and returns one of the four defined outcomes.
 
+Separation:
+
 - One person or session may coordinate small work, but executor and reviewer contexts remain separate.
-- Never let a reviewer validate its own implementation; never reuse an executor conversation as a review context.
+- Do not let a reviewer validate its own implementation and do not reuse an executor conversation as a review context.
 
 ## 1. Establish the task
 
@@ -34,11 +36,13 @@ Read the user's current request, every named source of truth, and applicable rep
 - unrelated or explicitly protected work; and
 - live automation or external effects that constrain safe execution.
 
+Discovery rules:
+
 - Stop discovery once the evidence supports a safe plan.
 - Ask only for a fact or decision that could materially change the result, scope, risk, authority, cost, external effect, or finish line.
 - Resolve ordinary reversible technical choices by inspection and professional judgment.
 - When a simpler approach produces the same outcome, show it and recommend it.
-- If sources contradict one another and the current user has not resolved the conflict: show the concrete alternatives and wait. Never combine them or pick the newest-looking document.
+- If sources contradict one another and the current user has not resolved the conflict: show the concrete alternatives and wait. Do not combine them or pick the newest-looking document.
 - A current direct user correction overrides older material and should be acknowledged plainly.
 
 ### Agree on one plan
@@ -117,6 +121,8 @@ Create a fresh worker using the initiating host's adapter. Do not fork the coord
 - checks assigned to this slice; and
 - required handback: changed paths, result, exact checks and output, remaining work, cleanup state, and any genuine blocker.
 
+Executor limits:
+
 - Permit whole-repository reading because the worker may need to trace call sites, but authorize edits only inside the approved component and its necessary direct consequences.
 - Require real repository edits, not a proposed patch in chat.
 - Do not let the worker stage, commit, change branches, push, deploy, publish, use credentials, or message externally unless the approved plan explicitly assigns that action to it.
@@ -172,13 +178,15 @@ Create a different fresh worker through the same initiating-host adapter. Never 
 - whole-repository read access; and
 - authority to run only review checks already in the approved ceiling.
 
+Reviewer conduct:
+
 - The reviewer directly inspects the repository and candidate.
 - When acceptance depends on an image, interface, audio, video, PDF, remote source, or live state, it inspects that evidence with an appropriate available tool; a description or executor claim is not a substitute.
 - If required evidence is inaccessible, the criterion remains unverified.
 
 ### Materiality
 
-Review only for material defects. A defect is material when it can cause:
+Review only for material defects. A defect is material when it causes or is highly likely to cause:
 
 - wrong user-visible behavior;
 - an unmet approved criterion;
@@ -201,6 +209,8 @@ Require exactly one leading outcome and concise evidence:
 - `FIX` — correctable material defects remain within approved scope.
 - `DONE` — the complete approved outcome is independently established.
 - `ASK USER` — responsible continuation needs changed authority, inaccessible human-only input, resolution of conflicting instructions, or another user-reserved decision.
+
+Outcome rules:
 
 - A final `CONTINUE` is not completion; treat it as `FIX` because final review must establish the whole outcome.
 - A missing check or inaccessible required artifact cannot become `DONE` through confident prose.
@@ -243,7 +253,7 @@ Require exactly one leading outcome and concise evidence:
 
 ## 7. Supervise long-running work
 
-- Assign one independent supervisor using the reviewer responsibility (Vibe's verifier role), outside the executing task. Use existing host operations so it can inspect and request a stop while the executor is busy; do not substitute a queued check inside that busy session. Confirm the actual stop/report route before dispatch; report a concrete host limitation if it is unavailable.
+- Assign one independent supervisor using the reviewer responsibility (Vibe’s verifier role), outside the executing task. Use existing host operations so it can inspect and request a stop while the executor is busy; do not substitute a queued check inside that busy session. Confirm the actual stop/report route before dispatch; report a concrete host limitation if it is unavailable.
 - At each named milestone and after no more than 60 minutes of active work since the last inspection, require a safe stopping point within 15 more minutes; use the confirmed host stop route if that point is missed. Preserve recoverable work and confirm task-owned writers and mutating commands have stopped before inspection; interrupting an agent alone is not proof.
 - Inspect the cumulative diff and candidate against governing materials: drift, production/test growth, repeated check invocations, reference fidelity, rejected executor reuse, and attempted gate bypass. Every added component and test must serve an approved behavior; remove or consolidate unnecessary duplicate paths, replacement architecture, speculative helpers, compatibility layers, scaffolding, and private-detail tests through the executor.
 - Use existing check output to count invocations. A named test file is not unlimited authority. Additional or repeated checks must meet the governing task's proof and authority rules; stop when authorized checks and material review are satisfied.
