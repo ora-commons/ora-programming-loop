@@ -13,12 +13,12 @@
     {
       "executable": false,
       "path": "README.md",
-      "sha256": "672dc844f9f63aa4b0a9ef2370b822663c986c5646b73e8a17eba377fa72d7cb"
+      "sha256": "555a9c765e2e1916184c84248822321b29b35ec93322376cb5cfb7ce6a972b68"
     },
     {
       "executable": false,
       "path": "VERSION",
-      "sha256": "f5e5c9534532840fcd45bb002e69ed85c61dba2753450e26b448b7df1481e24d"
+      "sha256": "1575e1af4a95f12f70b4ee6a6adce8160953d93ea17dc2611b90883ccc3ad3b8"
     },
     {
       "executable": false,
@@ -53,7 +53,7 @@
     {
       "executable": false,
       "path": "frameworks/programming-loop.md",
-      "sha256": "73b35a51267d19bc7983b088c4c3799b9374d78ffabde70b1ccf9c4aeed69af0"
+      "sha256": "f1e04433275f6e8d3b6971009417183ae086f7650c4bb60f55802a08420ad3a6"
     },
     {
       "executable": false,
@@ -73,7 +73,7 @@
     {
       "executable": false,
       "path": "scripts/install.py",
-      "sha256": "f772e4e8246a80fc3efcb99e5aeff112ef3a6c17776f418d3c787ffa54fbcc94"
+      "sha256": "c81a12794920fad42c45fc78ea1e8c1ac79ca35d2976adf646aa0fb612469671"
     },
     {
       "executable": false,
@@ -83,7 +83,7 @@
     {
       "executable": false,
       "path": "tests/test_distribution.py",
-      "sha256": "9c0d7acd69ca592952f881aa85eb66b2d0f44c8fa546e4c89e0bfe22c00f0cbe"
+      "sha256": "0a841d12cdc2e9070a5f42526c5caea120a73936faab8389b6b55d86e763d0b8"
     }
   ],
   "version": 1

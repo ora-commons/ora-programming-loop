@@ -37,7 +37,7 @@ component is installed.
 | `adapters/` | One short mapping for each supported host. |
 | `skills/programming-loop/SKILL.md` | The native skill entry that loads the framework and adapter. |
 | `profiles/` | Read-only-oriented reviewer profiles for hosts that use profile files. |
-| `scripts/install.py` | Transactional install, update, and removal command. |
+| `scripts/install.py` | Transactional install, update, and removal command; `facts` prints the package's machine-readable identity. |
 | `VERSION` | Component release identity. |
 
 The private `Golfplan18/ora-programming-loop` repository is the sole authoritative
@@ -46,6 +46,14 @@ Programming Loop source. The
 repository is its public source and update route. Public releases, product-embedded
 snapshots, and installed copies retain available provenance, but are not canonical
 authorities and should not be hand-edited as mirrors.
+
+If a release proves defective, the correction ships as a new version with a new
+tag and release notes that say what changed; a published tag is never relabeled
+or rewritten, and older releases remain reachable at their existing tags. Move
+to the corrected tag and update the installation. A withdrawn release is
+removed from the releases page while earlier versions remain reachable; after
+a withdrawal, move to the corrected or nearest intact release, or remove the
+installation.
 
 ## Supported hosts
 
@@ -65,9 +73,35 @@ mechanism. It is not a claim that every host version, model, provider, or
 permission mode has passed live end-to-end qualification. Always inspect the
 installed host's current tool descriptions before dispatch.
 
+The automated distribution checks were written and run on macOS (Apple
+silicon): they perform real installs into isolated host configuration roots
+for all six hosts, but they never open a host or run a model, and no live
+end-to-end qualification is claimed for any host. No Windows machine was used
+for any check, and no installation has been performed on any platform other
+than macOS. The MiniMax adapter defines a plausible native route, not a live
+end-to-end qualification; the Hermes and Qwen adapters likewise describe
+native mechanisms rather than qualified routes.
+
+Report problems at the public repository's issue tracker:
+https://github.com/ora-commons/ora-programming-loop/issues — include the
+command you ran, its output, and your platform. That issue tracker is the only
+support route; the package is published as-is, with no dedicated support
+channel, maintenance commitment, or compatibility promise.
+
 ## Install
 
-Run the installer from this component directory:
+Obtain a pinned copy of this release from the public repository — clone it at
+the release tag, or download that tag's archive from the repository's releases
+page:
+
+```sh
+git clone --branch v1.1.0 https://github.com/ora-commons/ora-programming-loop.git
+cd ora-programming-loop
+```
+
+`v1.1.0` is this release's tag; check the repository's tags or releases for
+the newest one. The installer needs Python 3.8 or later and uses only the
+Python standard library. Run it from this component directory:
 
 ```sh
 python3 scripts/install.py install --host codex
@@ -83,14 +117,30 @@ then switches the host entry points. If replacement fails, the previous
 installation remains recoverable. It does not contact a provider or start a
 model session.
 
-To update an existing installation from this component:
+`python3 scripts/install.py facts` prints the selected copy's component name,
+version, source location, supported actions, and host/adapter facts as JSON;
+reading it installs nothing.
+
+`python3 scripts/install.py status --host codex` reports what is actually
+installed for that host: the recorded identity — component, version, host,
+source provenance, and every installed file hash — as JSON, and it exits
+nonzero when installed files were changed or are missing. Reading it installs
+nothing.
+
+To update an existing installation, first move to the newer release — fetch
+and check out its tag (`git fetch --tags`, then `git checkout <tag>`), or
+obtain a fresh pinned copy — then run the same operation:
 
 ```sh
 python3 scripts/install.py install --host codex
 ```
 
 The `install` operation recognizes an existing owned installation and replaces
-it transactionally; there is no separate update operation.
+it transactionally; there is no separate update operation. Files you added
+inside the installed skill directory survive the replacement. The update
+refuses to proceed — changing nothing — when an owned installed file was edited
+or is missing, or when a new package file would overwrite a user addition;
+repair or remove that installation first.
 
 To remove only files owned by the installed release:
 
