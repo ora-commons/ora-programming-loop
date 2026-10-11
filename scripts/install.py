@@ -635,10 +635,40 @@ def remove(host: str, home: Path | None = None,
             shutil.rmtree(staging)
 
 
+def package_facts(source: Path) -> dict:
+    """Machine-readable identity of the selected copy and its supported hosts.
+
+    Names the component, the version of the exact folder being read, the
+    actions the installer performs, and every supported host with its adapter
+    and reviewer-profile fact. Reading these facts installs nothing.
+    """
+    version_bytes = regular_bytes(source / "VERSION")
+    version = version_bytes.decode("utf-8").strip()
+    if not re.fullmatch(r"\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?", version):
+        raise InstallationError("VERSION must identify a release, such as 1.0.0")
+    hosts = {}
+    for host in HOSTS:
+        adapter = f"adapters/{host}.md"
+        if adapter not in PRODUCT_PATHS:
+            raise InstallationError(f"Missing packaged adapter for supported host: {host}")
+        regular_bytes(source / adapter)
+        hosts[host] = {
+            "adapter": adapter,
+            "reviewer_profile": f"profiles/{host}/{PROFILE}" if host in PROFILE_HOSTS else None,
+        }
+    return {
+        "component": COMPONENT,
+        "version": version,
+        "source": str(source.resolve()),
+        "actions": ("install", "remove"),
+        "hosts": hosts,
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("operation", choices=("install", "remove", "status", "recover", "install-check", "remove-check"))
-    parser.add_argument("--host", choices=HOSTS, required=True)
+    parser.add_argument("operation", choices=("facts", "install", "remove", "status", "recover", "install-check", "remove-check"))
+    parser.add_argument("--host", choices=HOSTS)
     parser.add_argument("--home", type=Path, help="User root (defaults to the current user's home)")
     parser.add_argument("--host-root", type=Path, help="Explicit selected host/profile root; overrides --home")
     parser.add_argument(
@@ -647,6 +677,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     try:
+        if args.operation == "facts":
+            print(json.dumps(package_facts(args.source), indent=2, sort_keys=True))
+            return 0
+        if not args.host:
+            parser.error("--host is required for this operation")
         root = host_directory(args.host, args.home, args.host_root)
         if args.operation == "install-check":
             preflight_install(args.source, args.host, args.home, args.host_root)

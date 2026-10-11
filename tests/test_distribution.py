@@ -1,4 +1,5 @@
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
@@ -538,6 +539,29 @@ class DistributionTests(unittest.TestCase):
             with self.assertRaises(installer.InstallationError):
                 installer.install(ROOT, "hermes", self.home)
         self.assertEqual(extra.read_text(), "user-owned future collision")
+
+    def test_facts_operation_reports_identity_hosts_and_actions(self):
+        output = io.StringIO()
+        with mock.patch("sys.stdout", output):
+            status = installer.main(["facts", "--source", str(ROOT)])
+        self.assertEqual(status, 0)
+        facts = json.loads(output.getvalue())
+        self.assertEqual(facts["component"], "programming-loop")
+        self.assertEqual(facts["version"], (ROOT / "VERSION").read_text().strip())
+        self.assertEqual(facts["source"], str(ROOT.resolve()))
+        self.assertEqual(facts["actions"], ["install", "remove"])
+        self.assertEqual(set(facts["hosts"]), set(installer.HOSTS))
+        for host, host_facts in facts["hosts"].items():
+            self.assertEqual(host_facts["adapter"], f"adapters/{host}.md")
+            expected_profile = (
+                f"profiles/{host}/{installer.PROFILE}"
+                if host in installer.PROFILE_HOSTS
+                else None
+            )
+            self.assertEqual(host_facts["reviewer_profile"], expected_profile)
+
+        with self.assertRaises(installer.InstallationError):
+            installer.package_facts(self.base)
 
     def test_explicit_profile_root_and_symbolic_link_preservation(self):
         root = self.base / "Hermes profile"
