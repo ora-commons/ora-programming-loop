@@ -553,6 +553,29 @@ def preflight_install(source: Path, host: str, home: Path | None = None,
             if (name != "SOURCE.json" and name not in legacy_current["identity"]["files"]
                     and (legacy / name).exists()):
                 raise InstallationError(f"New package resource would overwrite a user addition: {legacy / name}")
+    if current is not None and legacy_current is not None:
+        # Both managed entries exist and would be merged into one; a user
+        # addition at the same relative path in both must not silently
+        # overwrite its counterpart, so refuse before any write.
+        conflicts = []
+        for item in sorted(skill.rglob("*")):
+            relative = item.relative_to(skill).as_posix()
+            if (not item.is_file() or relative == "SOURCE.json"
+                    or relative in current["identity"]["files"]):
+                continue
+            counterpart = legacy / relative
+            if (counterpart.is_file()
+                    and relative not in legacy_current["identity"]["files"]
+                    and regular_bytes(counterpart) != regular_bytes(item)):
+                conflicts.append(relative)
+        if conflicts:
+            raise InstallationError(
+                "Both installed entries carry user additions at the same relative "
+                "path with different contents; nothing was changed. Preserve one "
+                "copy of each conflict before updating: "
+                + ", ".join(f"{skill / relative} differs from {legacy / relative}"
+                            for relative in conflicts)
+            )
     if current is None and profile is not None and reviewer.exists():
         owner = legacy_current["identity"] if legacy_current is not None else None
         if owner is None or not owner.get("reviewer_sha256"):

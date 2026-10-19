@@ -561,7 +561,7 @@ class DistributionTests(unittest.TestCase):
         installer.install(source, "codex", self.home)
         root = self.home / installer.HOSTS["codex"]
         preserved = self.tree_bytes(root)
-        with self.assertRaisesRegex(installer.InstallationError, r"1\.3\.0.*1\.2\.0"):
+        with self.assertRaisesRegex(installer.InstallationError, r"1\.3\.0.*1\.2\.1"):
             installer.install(ROOT, "codex", self.home)
         self.assertEqual(self.tree_bytes(root), preserved)
         self.assertFalse(installer.inspect_installation(root, "codex")["mismatches"])
@@ -574,7 +574,7 @@ class DistributionTests(unittest.TestCase):
             )
         self.assertEqual(status, 1)
         self.assertIn("1.3.0", errors.getvalue())
-        self.assertIn("1.2.0", errors.getvalue())
+        self.assertIn("1.2.1", errors.getvalue())
         self.assertEqual(self.tree_bytes(root), preserved)
         self.assert_no_staging("codex")
 
@@ -587,7 +587,7 @@ class DistributionTests(unittest.TestCase):
         legacy = self.install_legacy_entry("qwen", version="1.3.0")
         root = self.home / installer.HOSTS["qwen"]
         preserved = self.tree_bytes(root)
-        with self.assertRaisesRegex(installer.InstallationError, r"1\.3\.0.*1\.2\.0"):
+        with self.assertRaisesRegex(installer.InstallationError, r"1\.3\.0.*1\.2\.1"):
             installer.install(ROOT, "qwen", self.home)
         self.assertEqual(self.tree_bytes(root), preserved)
         self.assertTrue(legacy.is_dir())
@@ -616,6 +616,39 @@ class DistributionTests(unittest.TestCase):
                     self.assertEqual(profile.read_bytes(),
                                      (ROOT / "profiles" / host / installer.PROFILE).read_bytes())
                 self.assert_no_staging(host)
+
+    def test_migration_refuses_conflicting_user_additions_in_both_entries(self):
+        skill = installer.install(ROOT, "codex", self.home)
+        legacy = skill.parent / installer.LEGACY_COMPONENT
+        shutil.copytree(skill, legacy)
+        identity = json.loads((legacy / "SOURCE.json").read_text())
+        identity["component"] = installer.LEGACY_COMPONENT
+        identity["source"] = installer.LEGACY_COMPONENT
+        (legacy / "SOURCE.json").write_text(json.dumps(identity), encoding="utf-8")
+        (skill / "user-notes.txt").write_text("new entry notes", encoding="utf-8")
+        (legacy / "user-notes.txt").write_text("earlier entry notes", encoding="utf-8")
+        root = self.home / installer.HOSTS["codex"]
+
+        preserved = self.tree_bytes(root)
+        with self.assertRaises(installer.InstallationError) as refusal:
+            installer.install(ROOT, "codex", self.home)
+        self.assertIn(str(skill / "user-notes.txt"), str(refusal.exception))
+        self.assertIn(str(legacy / "user-notes.txt"), str(refusal.exception))
+        self.assertEqual(self.tree_bytes(root), preserved)
+        self.assertFalse(installer.inspect_installation(root, "codex")["mismatches"])
+        self.assertFalse(installer.inspect_installation(
+            root, "codex", installer.LEGACY_COMPONENT)["mismatches"])
+        self.assert_no_staging("codex")
+
+        # Identical bytes at the same relative path keep one copy and migrate.
+        (skill / "user-notes.txt").write_text("shared notes", encoding="utf-8")
+        (legacy / "user-notes.txt").write_text("shared notes", encoding="utf-8")
+        merged = installer.install(ROOT, "codex", self.home)
+        self.assertEqual(merged, skill)
+        self.assertFalse(legacy.exists())
+        self.assertEqual((skill / "user-notes.txt").read_text(), "shared notes")
+        self.assertFalse(installer.inspect_installation(root, "codex")["mismatches"])
+        self.assert_no_staging("codex")
 
     def test_interrupted_legacy_replacement_leaves_entry_untouched(self):
         legacy = self.install_legacy_entry("claude")

@@ -101,11 +101,11 @@ the release tag, or download that tag's archive from the repository's releases
 page:
 
 ```sh
-git clone --branch v1.2.0 https://github.com/ora-commons/ora-programming-loop.git
+git clone --branch v1.2.1 https://github.com/ora-commons/ora-programming-loop.git
 cd ora-programming-loop
 ```
 
-`v1.2.0` is this release's tag; check the repository's tags or releases for
+`v1.2.1` is this release's tag; check the repository's tags or releases for
 the newest one. The installer needs Python 3.8 or later and uses only the
 Python standard library. Run it from this component directory:
 
