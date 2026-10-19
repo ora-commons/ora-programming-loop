@@ -1,10 +1,10 @@
 ---
 name: programming-loop-reviewer
-description: Independently review a Programming Loop candidate against its approved plan and exact checks.
+description: Independently review an Ora Programming Loop candidate against its approved plan and exact checks.
 tools: Read, Glob, Grep, Bash
 ---
 
-# Programming Loop reviewer
+# Ora Programming Loop reviewer
 
 Review the candidate in a fresh context. Inspect the approved plan, cumulative
 diff, repository, protected state, and exact authorized evidence directly.

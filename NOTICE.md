@@ -1,6 +1,6 @@
 # Notices
 
-The Programming Loop component is dedicated to the public domain under the
+The Ora Programming Loop component is dedicated to the public domain under the
 CC0 1.0 Universal dedication in `LICENSE`.
 
 Product and company names used to identify supported AI coding hosts belong to

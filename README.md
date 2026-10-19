@@ -1,9 +1,15 @@
-# Programming Loop
+# Ora Programming Loop
 
-Programming Loop is a portable method for completing bounded repository work
+Ora Programming Loop is a portable method for completing bounded repository work
 with separate implementation and review contexts. It turns an approved outcome
 into a protected change, exact checks, independent review, correction, and the
 agreed delivery endpoint without introducing a workflow service or run ledger.
+
+It is one of the Ora products. See [ora-ai.app](https://ora-ai.app) for Ora,
+and the other products' pages:
+[Ora Agent Bridge](https://github.com/ora-commons/ora-agent-bridge),
+[Ora AI Boost](https://github.com/ora-commons/ora-adversarial-review), and
+[Ora Vibe Coder](https://github.com/ora-commons/ora-vibe-coder).
 
 The component is host-neutral. One framework defines the method; a small
 adapter explains how to perform fresh dispatch and handback in each supported
@@ -41,7 +47,7 @@ component is installed.
 | `VERSION` | Component release identity. |
 
 The private `Golfplan18/ora-programming-loop` repository is the sole authoritative
-Programming Loop source. The
+Ora Programming Loop source. The
 [ora-commons/ora-programming-loop](https://github.com/ora-commons/ora-programming-loop)
 repository is its public source and update route. Public releases, product-embedded
 snapshots, and installed copies retain available provenance, but are not canonical
@@ -95,11 +101,11 @@ the release tag, or download that tag's archive from the repository's releases
 page:
 
 ```sh
-git clone --branch v1.1.0 https://github.com/ora-commons/ora-programming-loop.git
+git clone --branch v1.2.0 https://github.com/ora-commons/ora-programming-loop.git
 cd ora-programming-loop
 ```
 
-`v1.1.0` is this release's tag; check the repository's tags or releases for
+`v1.2.0` is this release's tag; check the repository's tags or releases for
 the newest one. The installer needs Python 3.8 or later and uses only the
 Python standard library. Run it from this component directory:
 
@@ -140,7 +146,12 @@ it transactionally; there is no separate update operation. Files you added
 inside the installed skill directory survive the replacement. The update
 refuses to proceed — changing nothing — when an owned installed file was edited
 or is missing, or when a new package file would overwrite a user addition;
-repair or remove that installation first.
+repair or remove that installation first. The installer also never replaces a
+newer installed version with an older one: it changes nothing and reports both
+versions. Updating a pre-1.2.0 installation replaces its earlier
+`programming-loop` entry with the `ora-programming-loop` entry in the same
+step, without leaving a duplicate; an edited or unmanaged earlier entry is
+reported and preserved, not overwritten.
 
 To remove only files owned by the installed release:
 
@@ -153,7 +164,7 @@ Read the command's result before deleting any remaining user-owned file.
 
 ## Use
 
-Ask the host to use **Programming Loop** for a repository task. The coordinator
+Ask the host to use **Ora Programming Loop** for a repository task. The coordinator
 loads the universal framework and its installed adapter, inspects the project,
 and proposes the small scope lock described by the framework. Editing begins
 only after the user approves that plan.

@@ -1,6 +1,6 @@
 # Codex adapter
 
-Use this adapter only when Codex is the session coordinating Programming Loop.
+Use this adapter only when Codex is the session coordinating Ora Programming Loop.
 The universal framework remains authoritative.
 
 ## Fresh workers

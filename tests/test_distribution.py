@@ -61,10 +61,10 @@ class DistributionTests(unittest.TestCase):
         ).encode()
         identity = {
             "authoritative_repository": installer.AUTHORITATIVE_REPOSITORY,
-            "component": "programming-loop",
+            "component": installer.COMPONENT,
             "files": {name: installer.digest(data) for name, (data, _mode) in entries.items()},
             "public_release_repository": installer.PUBLIC_REPOSITORY_IDENTIFIER,
-            "source": "programming-loop",
+            "source": installer.COMPONENT,
             "source_revision": installer.git_object_id("commit", commit).hex(),
             "source_tree": tree,
             "vendored_snapshot": installer.VENDORED_SNAPSHOT,
@@ -89,6 +89,21 @@ class DistributionTests(unittest.TestCase):
         raw = (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode()
         (source / installer.PUBLIC_MANIFEST).write_bytes(raw)
         return manifest, raw
+
+    def install_legacy_entry(self, host, version="1.1.0"):
+        """Recreate the entry an earlier release installed under its old name."""
+        skill = installer.install(ROOT, host, self.home)
+        legacy = skill.parent / installer.LEGACY_COMPONENT
+        skill.rename(legacy)
+        identity = json.loads((legacy / "SOURCE.json").read_text())
+        identity["component"] = installer.LEGACY_COMPONENT
+        identity["source"] = installer.LEGACY_COMPONENT
+        identity["version"] = version
+        version_bytes = version.encode("utf-8")
+        identity["files"]["VERSION"] = installer.digest(version_bytes)
+        (legacy / "VERSION").write_bytes(version_bytes)
+        (legacy / "SOURCE.json").write_text(json.dumps(identity), encoding="utf-8")
+        return legacy
 
     def assert_no_staging(self, host):
         root = self.home / installer.HOSTS[host]
@@ -127,8 +142,8 @@ class DistributionTests(unittest.TestCase):
                 with self.subTest(host=host):
                     skill = installer.install(ROOT, host, self.home)
                     identity = json.loads((skill / "SOURCE.json").read_text())
-                    self.assertEqual(identity["component"], "programming-loop")
-                    self.assertEqual(identity["source"], "programming-loop")
+                    self.assertEqual(identity["component"], installer.COMPONENT)
+                    self.assertEqual(identity["source"], installer.COMPONENT)
                     self.assertEqual(identity["host"], host)
                     self.assertEqual(identity["version"], (ROOT / "VERSION").read_text().strip())
                     self.assertEqual(identity["public_release_repository"], installer.PUBLIC_REPOSITORY)
@@ -171,11 +186,11 @@ class DistributionTests(unittest.TestCase):
                      "source_revision", "source_tree"):
             legacy_identity.pop(name)
         (skill / "SOURCE.json").write_text(json.dumps(legacy_identity), encoding="utf-8")
-        (source / "VERSION").write_text("1.0.1\n", encoding="utf-8")
+        (source / "VERSION").write_text("1.2.1\n", encoding="utf-8")
         (source / "frameworks/programming-loop.md").write_text("# Replacement complete method\n", encoding="utf-8")
         installer.install(source, "claude", self.home)
         self.assertEqual(extra.read_text(), "Keep my notes")
-        self.assertEqual((skill / "VERSION").read_text(), "1.0.1\n")
+        self.assertEqual((skill / "VERSION").read_text(), "1.2.1\n")
         self.assertEqual((skill / "frameworks/programming-loop.md").read_bytes(),
                          (source / "frameworks/programming-loop.md").read_bytes())
         self.assert_no_staging("claude")
@@ -211,7 +226,7 @@ class DistributionTests(unittest.TestCase):
         skill = installer.install(source, "hermes", self.home)
         root = self.home / installer.HOSTS["hermes"]
         preserved = self.tree_bytes(root)
-        (source / "VERSION").write_text("1.0.1\n", encoding="utf-8")
+        (source / "VERSION").write_text("1.2.1\n", encoding="utf-8")
         (source / "frameworks/programming-loop.md").write_text(
             "# Replacement complete method\n", encoding="utf-8"
         )
@@ -225,7 +240,7 @@ class DistributionTests(unittest.TestCase):
         identity = json.loads((skill / "SOURCE.json").read_text())
         self.assertEqual(identity["source_kind"], "public-release")
         self.assertEqual(identity["source_manifest_sha256"], installer.digest(manifest_bytes))
-        self.assertEqual((skill / "VERSION").read_text(), "1.0.1\n")
+        self.assertEqual((skill / "VERSION").read_text(), "1.2.1\n")
         self.assertEqual((skill / "frameworks/programming-loop.md").read_bytes(),
                          (source / "frameworks/programming-loop.md").read_bytes())
         self.assert_no_staging("hermes")
@@ -348,7 +363,7 @@ class DistributionTests(unittest.TestCase):
             json.dumps(manifest), encoding="utf-8"
         )
         cases.append(("incomplete public manifest", public_missing,
-                      "exact Programming Loop package"))
+                      "exact Ora Programming Loop package"))
 
         public_mode = self.copy_source("public-mode-mismatch")
         manifest, _raw = self.write_public_manifest(public_mode)
@@ -402,7 +417,7 @@ class DistributionTests(unittest.TestCase):
         previous = (skill / "SOURCE.json").read_bytes()
         profile = self.home / ".qwen/agents" / installer.PROFILE
         old_profile = profile.read_bytes()
-        (source / "VERSION").write_text("1.0.1\n", encoding="utf-8")
+        (source / "VERSION").write_text("1.2.1\n", encoding="utf-8")
         (source / "profiles/qwen" / installer.PROFILE).write_text("new profile\n", encoding="utf-8")
         replace = os.replace
         failed = False
@@ -506,7 +521,7 @@ class DistributionTests(unittest.TestCase):
         self.assertFalse((root / "agents" / installer.PROFILE).exists())
 
     def test_unmanaged_or_edited_install_is_never_overwritten(self):
-        skill = self.home / ".codex/skills/programming-loop"
+        skill = self.home / ".codex/skills" / installer.COMPONENT
         skill.mkdir(parents=True)
         entry = skill / "SKILL.md"
         entry.write_text("unmanaged user skill", encoding="utf-8")
@@ -540,13 +555,144 @@ class DistributionTests(unittest.TestCase):
                 installer.install(ROOT, "hermes", self.home)
         self.assertEqual(extra.read_text(), "user-owned future collision")
 
+    def test_older_release_never_replaces_newer_installed_version(self):
+        source = self.copy_source("newer-release")
+        (source / "VERSION").write_text("1.3.0", encoding="utf-8")
+        installer.install(source, "codex", self.home)
+        root = self.home / installer.HOSTS["codex"]
+        preserved = self.tree_bytes(root)
+        with self.assertRaisesRegex(installer.InstallationError, r"1\.3\.0.*1\.2\.0"):
+            installer.install(ROOT, "codex", self.home)
+        self.assertEqual(self.tree_bytes(root), preserved)
+        self.assertFalse(installer.inspect_installation(root, "codex")["mismatches"])
+        self.assert_no_staging("codex")
+
+        errors = io.StringIO()
+        with mock.patch("sys.stderr", errors):
+            status = installer.main(
+                ["install", "--host", "codex", "--home", str(self.home), "--source", str(ROOT)]
+            )
+        self.assertEqual(status, 1)
+        self.assertIn("1.3.0", errors.getvalue())
+        self.assertIn("1.2.0", errors.getvalue())
+        self.assertEqual(self.tree_bytes(root), preserved)
+        self.assert_no_staging("codex")
+
+        newer = self.copy_source("newer-release-again")
+        (newer / "VERSION").write_text("1.3.1", encoding="utf-8")
+        skill = installer.install(newer, "codex", self.home)
+        self.assertEqual((skill / "VERSION").read_text(), "1.3.1")
+
+        # A newer legacy-named entry is protected the same way.
+        legacy = self.install_legacy_entry("qwen", version="1.3.0")
+        root = self.home / installer.HOSTS["qwen"]
+        preserved = self.tree_bytes(root)
+        with self.assertRaisesRegex(installer.InstallationError, r"1\.3\.0.*1\.2\.0"):
+            installer.install(ROOT, "qwen", self.home)
+        self.assertEqual(self.tree_bytes(root), preserved)
+        self.assertTrue(legacy.is_dir())
+        self.assertFalse((legacy.parent / installer.COMPONENT).exists())
+        self.assert_no_staging("qwen")
+
+    def test_update_replaces_legacy_entry_without_duplicate(self):
+        for host in ("claude", "codex"):
+            with self.subTest(host=host):
+                legacy = self.install_legacy_entry(host)
+                extra = legacy / "user-notes.txt"
+                extra.write_text("Keep my notes", encoding="utf-8")
+                root = self.home / installer.HOSTS[host]
+                skill = installer.install(ROOT, host, self.home)
+                self.assertEqual(skill, legacy.parent / installer.COMPONENT)
+                self.assertFalse(legacy.exists())
+                self.assertEqual(sorted(entry.name for entry in (root / "skills").iterdir()),
+                                 [installer.COMPONENT])
+                identity = json.loads((skill / "SOURCE.json").read_text())
+                self.assertEqual(identity["component"], installer.COMPONENT)
+                self.assertEqual((skill / "VERSION").read_text(), (ROOT / "VERSION").read_text())
+                self.assertEqual((skill / "user-notes.txt").read_text(), "Keep my notes")
+                self.assertFalse(installer.inspect_installation(root, host)["mismatches"])
+                if host in installer.PROFILE_HOSTS:
+                    profile = root / "agents" / installer.PROFILE
+                    self.assertEqual(profile.read_bytes(),
+                                     (ROOT / "profiles" / host / installer.PROFILE).read_bytes())
+                self.assert_no_staging(host)
+
+    def test_interrupted_legacy_replacement_leaves_entry_untouched(self):
+        legacy = self.install_legacy_entry("claude")
+        root = self.home / installer.HOSTS["claude"]
+        preserved = self.tree_bytes(root)
+        replace = os.replace
+        failed = False
+
+        def fail_once(src, dst):
+            nonlocal failed
+            if (Path(src).parent.name.startswith(".programming-loop-stage-")
+                    and Path(src).name == "skill" and not failed):
+                failed = True
+                raise OSError("injected failed replacement")
+            return replace(src, dst)
+
+        with mock.patch.object(installer.os, "replace", side_effect=fail_once):
+            with self.assertRaisesRegex(OSError, "injected failed replacement"):
+                installer.install(ROOT, "claude", self.home)
+        self.assertTrue(failed)
+        self.assertEqual(self.tree_bytes(root), preserved)
+        self.assertTrue(legacy.is_dir())
+        self.assertFalse((legacy.parent / installer.COMPONENT).exists())
+        self.assert_no_staging("claude")
+
+        skill = installer.install(ROOT, "claude", self.home)
+        self.assertEqual(skill, legacy.parent / installer.COMPONENT)
+        self.assertFalse(legacy.exists())
+        self.assertFalse(installer.inspect_installation(root, "claude")["mismatches"])
+        self.assert_no_staging("claude")
+
+    def test_legacy_entry_protections_report_instead_of_replacing(self):
+        edited = self.install_legacy_entry("zcode")
+        method = edited / "frameworks/programming-loop.md"
+        method.write_text("user's edited method", encoding="utf-8")
+        with self.assertRaisesRegex(installer.InstallationError, "changed or are missing"):
+            installer.install(ROOT, "zcode", self.home)
+        self.assertEqual(method.read_text(), "user's edited method")
+        self.assertTrue(edited.is_dir())
+        self.assertFalse((edited.parent / installer.COMPONENT).exists())
+        self.assert_no_staging("zcode")
+
+        unmanaged = self.home / ".codex/skills" / installer.LEGACY_COMPONENT
+        unmanaged.mkdir(parents=True)
+        entry = unmanaged / "SKILL.md"
+        entry.write_text("unmanaged earlier entry", encoding="utf-8")
+        with self.assertRaisesRegex(installer.InstallationError, "Unmanaged or incomplete"):
+            installer.install(ROOT, "codex", self.home)
+        self.assertEqual(entry.read_text(), "unmanaged earlier entry")
+        self.assertFalse((unmanaged.parent / installer.COMPONENT).exists())
+        self.assert_no_staging("codex")
+
+        legacy = self.install_legacy_entry("minimax")
+        collision = legacy / "future-resource.md"
+        collision.write_text("user-owned future collision", encoding="utf-8")
+        real_payload = installer.payload
+
+        def new_payload(source, host):
+            files, profile = real_payload(source, host)
+            files["future-resource.md"] = b"new package content"
+            return files, profile
+
+        with mock.patch.object(installer, "payload", side_effect=new_payload):
+            with self.assertRaisesRegex(installer.InstallationError, "user addition"):
+                installer.install(ROOT, "minimax", self.home)
+        self.assertEqual(collision.read_text(), "user-owned future collision")
+        self.assertTrue(legacy.is_dir())
+        self.assertFalse((legacy.parent / installer.COMPONENT).exists())
+        self.assert_no_staging("minimax")
+
     def test_facts_operation_reports_identity_hosts_and_actions(self):
         output = io.StringIO()
         with mock.patch("sys.stdout", output):
             status = installer.main(["facts", "--source", str(ROOT)])
         self.assertEqual(status, 0)
         facts = json.loads(output.getvalue())
-        self.assertEqual(facts["component"], "programming-loop")
+        self.assertEqual(facts["component"], installer.COMPONENT)
         self.assertEqual(facts["version"], (ROOT / "VERSION").read_text().strip())
         self.assertEqual(facts["source"], str(ROOT.resolve()))
         self.assertEqual(facts["actions"], ["install", "remove"])
@@ -566,7 +712,7 @@ class DistributionTests(unittest.TestCase):
     def test_explicit_profile_root_and_symbolic_link_preservation(self):
         root = self.base / "Hermes profile"
         skill = installer.install(ROOT, "hermes", host_root=root)
-        self.assertEqual(skill, root / "skills/programming-loop")
+        self.assertEqual(skill, root / "skills" / installer.COMPONENT)
         self.assertEqual(installer.remove("hermes", host_root=root), [])
         self.assertFalse(skill.exists())
         if hasattr(os, "symlink"):

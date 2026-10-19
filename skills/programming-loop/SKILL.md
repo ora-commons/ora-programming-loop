@@ -1,9 +1,9 @@
 ---
-name: programming-loop
+name: ora-programming-loop
 description: Complete bounded repository work through an approved scope, fresh implementation, independent review, correction, and the agreed delivery endpoint.
 ---
 
-# Programming Loop
+# Ora Programming Loop
 
 Read `../../frameworks/programming-loop.md` completely, then read exactly one
 file from `../../adapters/`: the adapter matching the host that is initiating

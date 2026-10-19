@@ -1,6 +1,6 @@
 # Hermes adapter
 
-Use this adapter only when Hermes coordinates Programming Loop. The universal
+Use this adapter only when Hermes coordinates Ora Programming Loop. The universal
 framework defines the method and outcomes.
 
 ## Fresh workers

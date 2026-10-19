@@ -1,6 +1,6 @@
 # MiniMax Code adapter
 
-Use this adapter only when MiniMax Code coordinates Programming Loop. The
+Use this adapter only when MiniMax Code coordinates Ora Programming Loop. The
 universal framework remains the source of workflow truth.
 
 ## Fresh workers

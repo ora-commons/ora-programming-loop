@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install only Programming Loop resources; never invoke a coding host or model."""
+"""Install only Ora Programming Loop resources; never invoke a coding host or model."""
 
 from __future__ import annotations
 
@@ -23,7 +23,8 @@ HOSTS = {
     "minimax": ".minimax",
 }
 PROFILE_HOSTS = {"claude", "zcode", "qwen"}
-COMPONENT = "programming-loop"
+COMPONENT = "ora-programming-loop"
+LEGACY_COMPONENT = "programming-loop"
 PROFILE = "programming-loop-reviewer.md"
 SOURCE = Path(__file__).resolve().parents[1]
 PUBLIC_MANIFEST = ".ora-public-release-manifest.json"
@@ -69,6 +70,22 @@ class InstallationError(Exception):
 
 def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def version_tuple(version: str) -> tuple:
+    """Numeric X.Y.Z core of a release already accepted by the VERSION format regex."""
+    core = version.partition("-")[0].partition("+")[0]
+    return tuple(int(part) for part in core.split("."))
+
+
+def ensure_not_downgrade(installing: str, installed: str) -> None:
+    """Never replace a newer installed release; change nothing and name both versions."""
+    if version_tuple(installed) > version_tuple(installing):
+        raise InstallationError(
+            f"The installed Ora Programming Loop version {installed} is newer than "
+            f"the supplied version {installing}; the newer installation was kept "
+            "and nothing was changed."
+        )
 
 
 def host_directory(host: str, home: Path | None = None,
@@ -143,7 +160,7 @@ def validate_source_hashes(identity: object,
         if not valid_file_identity(name, expected):
             raise InstallationError(f"{label} contains an invalid file identity")
     if set(identity) != PRODUCT_PATHS:
-        raise InstallationError(f"{label} must identify the exact Programming Loop package")
+        raise InstallationError(f"{label} must identify the exact Ora Programming Loop package")
     for name, (data, _executable) in source_files.items():
         if identity.get(name) != digest(data):
             raise InstallationError(f"{label} does not identify the supplied resource: {name}")
@@ -244,7 +261,7 @@ def package_provenance(
                 or identity.get("version") != version
                 or identity.get("public_release_repository") != PUBLIC_REPOSITORY_IDENTIFIER
                 or identity.get("vendored_snapshot") != VENDORED_SNAPSHOT):
-            raise InstallationError("SOURCE.json does not identify this Programming Loop release")
+            raise InstallationError("SOURCE.json does not identify this Ora Programming Loop release")
         revision = identity.get("source_revision")
         tree = identity.get("source_tree")
         if (not isinstance(revision, str) or not re.fullmatch(r"[0-9a-f]{40}", revision)
@@ -289,7 +306,7 @@ def payload(source: Path, host: str) -> tuple[dict[str, bytes], bytes | None]:
     framework_link = b"`../../frameworks/programming-loop.md`"
     adapter_link = b"`../../adapters/`"
     if source_entry.count(framework_link) != 1 or source_entry.count(adapter_link) != 1:
-        raise InstallationError("The Programming Loop entry has unexpected resource links")
+        raise InstallationError("The Ora Programming Loop entry has unexpected resource links")
     entry = source_entry.replace(framework_link, b"`./frameworks/programming-loop.md`")
     entry = entry.replace(adapter_link, f"`./adapters/{host}.md`".encode())
     paths = {
@@ -324,16 +341,20 @@ def payload(source: Path, host: str) -> tuple[dict[str, bytes], bytes | None]:
     return files, profile
 
 
-def read_identity(skill: Path, host: str) -> dict:
+def read_identity(skill: Path, host: str, component: str = COMPONENT) -> dict:
     try:
         identity = json.loads(regular_bytes(skill / "SOURCE.json"))
     except (ValueError, InstallationError) as error:
+        legacy = skill.parent / LEGACY_COMPONENT
+        earlier = (f" An earlier release's {LEGACY_COMPONENT} entry is installed at "
+                   f"{legacy}; install this release to replace it."
+                   if component == COMPONENT and legacy.is_dir() else "")
         raise InstallationError(
             f"Unmanaged or incomplete installation at {skill}; no files changed. "
-            "Select another host root or use the original installer to repair it."
+            "Select another host root or use the original installer to repair it." + earlier
         ) from error
-    if (not isinstance(identity, dict) or identity.get("component") != COMPONENT
-            or identity.get("source") != COMPONENT or identity.get("host") != host
+    if (not isinstance(identity, dict) or identity.get("component") != component
+            or identity.get("source") != component or identity.get("host") != host
             or not isinstance(identity.get("files"), dict)
             or not isinstance(identity.get("version"), str)
             or not re.fullmatch(r"\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?", identity["version"])):
@@ -388,10 +409,10 @@ def ensure_plain_tree(path: Path) -> None:
                 raise InstallationError(f"Preserve symbolic link before updating: {item}")
 
 
-def inspect_installation(root: Path, host: str) -> dict:
-    skill = root / "skills" / COMPONENT
+def inspect_installation(root: Path, host: str, component: str = COMPONENT) -> dict:
+    skill = root / "skills" / component
     ensure_plain_tree(skill)
-    identity = read_identity(skill, host)
+    identity = read_identity(skill, host, component)
     mismatches = []
     for name, expected in identity["files"].items():
         path = skill / name
@@ -416,11 +437,18 @@ def recover(root: Path) -> bool:
         return False
     ensure_plain_tree(backup)
     state = json.loads(regular_bytes(backup / "state.json"))
-    if (state.get("component") != COMPONENT
-            or set(state.get("originals", {})) != {"skill", "profile"}
-            or not all(isinstance(value, bool) for value in state["originals"].values())):
+    originals = state.get("originals") if isinstance(state, dict) else None
+    if (not isinstance(state, dict)
+            or state.get("component") not in {COMPONENT, LEGACY_COMPONENT}
+            or not isinstance(originals, dict)
+            or not {"skill", "profile"}.issubset(originals)
+            or set(originals) - {"skill", "legacy", "profile"}
+            or not all(isinstance(value, bool) for value in originals.values())):
         raise InstallationError(f"Unrecognized recovery directory: {backup}")
-    targets = {"skill": root / "skills" / COMPONENT, "profile": root / "agents" / PROFILE}
+    # The state's component names the entry this transaction replaced, so an
+    # interrupted earlier-release replacement still recovers at its own path.
+    component = state["component"]
+    targets = {"skill": root / "skills" / component, "profile": root / "agents" / PROFILE}
     for name, target in targets.items():
         original = backup / name
         ensure_plain_tree(target)
@@ -430,7 +458,7 @@ def recover(root: Path) -> bool:
                     replacement = state["replacement"]
                     if json.loads(regular_bytes(target / "SOURCE.json")) != replacement:
                         raise InstallationError(f"Changed replacement retained at {target}")
-                    old = read_identity(original, replacement["host"])
+                    old = read_identity(original, replacement["host"], component)
                     expected = {key: value for key, value in replacement["files"].items()}
                     expected["SOURCE.json"] = digest(regular_bytes(target / "SOURCE.json"))
                     for item in original.rglob("*"):
@@ -467,6 +495,17 @@ def recover(root: Path) -> bool:
                 target.unlink()
             else:
                 raise InstallationError(f"Changed replacement retained at {target}")
+    legacy_target = root / "skills" / LEGACY_COMPONENT
+    legacy_original = backup / "legacy"
+    ensure_plain_tree(legacy_target)
+    if legacy_original.exists():
+        if legacy_target.exists():
+            raise InstallationError(
+                f"Changed replacement retained at {legacy_target}; originals remain at {backup}"
+            )
+        os.replace(legacy_original, legacy_target)
+    # When no legacy original is retained, the earlier entry was either never
+    # moved (it is already in place) or never present; nothing is restored there.
     shutil.rmtree(backup)
     return True
 
@@ -475,13 +514,18 @@ def preflight_install(source: Path, host: str, home: Path | None = None,
                       host_root: Path | None = None) -> tuple:
     root = host_directory(host, home, host_root)
     skill = root / "skills" / COMPONENT
+    legacy = root / "skills" / LEGACY_COMPONENT
     reviewer = root / "agents" / PROFILE
     files, profile = payload(source, host)
     ensure_plain_tree(skill)
+    ensure_plain_tree(legacy)
     ensure_plain_tree(reviewer)
     backup = root / ".programming-loop-previous"
     if backup.exists():
         raise InstallationError(f"Interrupted replacement retained at {backup}; run recover for this host root")
+    version = files["VERSION"].decode("utf-8").strip()
+    current = None
+    legacy_current = None
     if skill.exists():
         current = inspect_installation(root, host)
         if current["mismatches"]:
@@ -489,20 +533,36 @@ def preflight_install(source: Path, host: str, home: Path | None = None,
                 "Installed files were changed or are missing; preserve or repair them before updating: "
                 + ", ".join(current["mismatches"])
             )
+        ensure_not_downgrade(version, current["identity"]["version"])
         for name in files:
             if (name != "SOURCE.json" and name not in current["identity"]["files"]
                     and (skill / name).exists()):
                 raise InstallationError(f"New package resource would overwrite a user addition: {skill / name}")
-    else:
-        current = None
-        if profile is not None and reviewer.exists():
+    if legacy.exists():
+        # An earlier release installed the legacy-named entry; a managed, unedited
+        # one is replaced together with this install so no duplicate remains.
+        legacy_current = inspect_installation(root, host, LEGACY_COMPONENT)
+        if legacy_current["mismatches"]:
+            raise InstallationError(
+                "Files of the earlier installed entry were changed or are missing; "
+                "preserve or repair them before updating: "
+                + ", ".join(legacy_current["mismatches"])
+            )
+        ensure_not_downgrade(version, legacy_current["identity"]["version"])
+        for name in files:
+            if (name != "SOURCE.json" and name not in legacy_current["identity"]["files"]
+                    and (legacy / name).exists()):
+                raise InstallationError(f"New package resource would overwrite a user addition: {legacy / name}")
+    if current is None and profile is not None and reviewer.exists():
+        owner = legacy_current["identity"] if legacy_current is not None else None
+        if owner is None or not owner.get("reviewer_sha256"):
             raise InstallationError(f"Unowned reviewer profile retained at {reviewer}")
-    return root, skill, reviewer, files, profile, current
+    return root, skill, legacy, reviewer, files, profile, current, legacy_current
 
 
 def install(source: Path, host: str, home: Path | None = None,
             host_root: Path | None = None) -> Path:
-    root, skill, reviewer, files, profile, current = preflight_install(
+    root, skill, legacy, reviewer, files, profile, current, legacy_current = preflight_install(
         source, host, home, host_root
     )
     backup = root / ".programming-loop-previous"
@@ -517,6 +577,12 @@ def install(source: Path, host: str, home: Path | None = None,
                 (staged_skill / name).unlink(missing_ok=True)
         else:
             staged_skill.mkdir()
+        if legacy.exists():
+            # Carry user additions from the earlier-named entry into the staged
+            # replacement; its owned resources are retired below.
+            shutil.copytree(legacy, staged_skill, dirs_exist_ok=True)
+            for name in legacy_current["identity"]["files"]:
+                (staged_skill / name).unlink(missing_ok=True)
         for name, data in files.items():
             target = staged_skill / name
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -528,7 +594,8 @@ def install(source: Path, host: str, home: Path | None = None,
             if regular_bytes(staged_skill / name) != data:
                 raise InstallationError(f"Staged resource differs: {name}")
         state = {"component": COMPONENT,
-                 "originals": {"skill": skill.exists(), "profile": reviewer.exists()},
+                 "originals": {"skill": skill.exists(), "legacy": legacy.exists(),
+                               "profile": reviewer.exists()},
                  "replacement": json.loads(files["SOURCE.json"])}
         staged_backup = staging / "previous"
         staged_backup.mkdir()
@@ -542,12 +609,18 @@ def install(source: Path, host: str, home: Path | None = None,
             if skill.exists():
                 os.replace(skill, backup / "skill")
             os.replace(staged_skill, skill)
+            if legacy.exists():
+                # Retire the earlier-named entry in the same transaction so the
+                # update leaves no duplicate behind.
+                os.replace(legacy, backup / "legacy")
             if profile is not None:
                 reviewer.parent.mkdir(parents=True, exist_ok=True)
                 if reviewer.exists():
                     os.replace(reviewer, backup / "profile")
                 os.replace(staging / "profile", reviewer)
             if inspect_installation(root, host)["mismatches"]:
+                raise InstallationError("Installed resources failed readback")
+            if legacy.exists():
                 raise InstallationError("Installed resources failed readback")
         except BaseException:
             try:
@@ -572,7 +645,7 @@ def preflight_remove(host: str, home: Path | None = None,
     mismatches = inspect_installation(root, host)["mismatches"]
     if mismatches:
         raise InstallationError(
-            "Installed Programming Loop files were changed or are missing; "
+            "Installed Ora Programming Loop files were changed or are missing; "
             "preserve or repair them before removal: " + ", ".join(mismatches)
         )
     targets = [(skill / name, expected) for name, expected in identity["files"].items()]
@@ -581,7 +654,7 @@ def preflight_remove(host: str, home: Path | None = None,
     for target, expected in targets:
         ensure_plain_tree(target)
         if not target.is_file() or digest(regular_bytes(target)) != expected:
-            raise InstallationError(f"Installed Programming Loop file changed before removal: {target}")
+            raise InstallationError(f"Installed Ora Programming Loop file changed before removal: {target}")
     return root, skill, root / "agents" / PROFILE, identity
 
 
@@ -673,7 +746,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--host-root", type=Path, help="Explicit selected host/profile root; overrides --home")
     parser.add_argument(
         "--source", type=Path, default=SOURCE,
-        help=f"Programming Loop release or vendored source folder; public updates: {PUBLIC_REPOSITORY}",
+        help=f"Ora Programming Loop release or vendored source folder; public updates: {PUBLIC_REPOSITORY}",
     )
     args = parser.parse_args(argv)
     try:
@@ -685,16 +758,16 @@ def main(argv: list[str] | None = None) -> int:
         root = host_directory(args.host, args.home, args.host_root)
         if args.operation == "install-check":
             preflight_install(args.source, args.host, args.home, args.host_root)
-            print("Programming Loop installation targets are ready.")
+            print("Ora Programming Loop installation targets are ready.")
         elif args.operation == "remove-check":
             preflight_remove(args.host, args.home, args.host_root)
-            print("Programming Loop removal targets are ready.")
+            print("Ora Programming Loop removal targets are ready.")
         elif args.operation == "install":
             path = install(args.source, args.host, args.home, args.host_root)
-            print(f"Installed Programming Loop at {path}. Restart the selected host to refresh skills.")
+            print(f"Installed Ora Programming Loop at {path}. Restart the selected host to refresh skills.")
         elif args.operation == "remove":
             retained = remove(args.host, args.home, args.host_root)
-            print("Removed Programming Loop files; projects, unrelated settings, and unowned additions are preserved.")
+            print("Removed Ora Programming Loop files; projects, unrelated settings, and unowned additions are preserved.")
             if retained:
                 print("Retained unowned additions:\n" + "\n".join(retained))
         elif args.operation == "recover":
@@ -704,7 +777,7 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(result, indent=2, sort_keys=True))
             return 1 if result["mismatches"] else 0
     except (InstallationError, OSError, ValueError) as error:
-        print(f"Programming Loop: {error}", file=sys.stderr)
+        print(f"Ora Programming Loop: {error}", file=sys.stderr)
         return 1
     return 0
 

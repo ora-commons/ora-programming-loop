@@ -1,8 +1,8 @@
-# Programming Loop framework
+# Ora Programming Loop framework
 
 ## Purpose and authority
 
-Programming Loop completes bounded repository work through one approved plan, fresh implementation, independent review, correction, and the agreed delivery endpoint. The session running this framework is the **coordinator**.
+Ora Programming Loop completes bounded repository work through one approved plan, fresh implementation, independent review, correction, and the agreed delivery endpoint. The session running this framework is the **coordinator**.
 
 - The coordinator owns the plan, dispatch sequence, evidence, and final handback; it does not pretend that preparing a prompt or opening a worker proves that work happened.
 - Use the adapter for the initiating host together with this framework; the adapter supplies native tool names and isolation facts only.

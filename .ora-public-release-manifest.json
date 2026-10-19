@@ -8,42 +8,42 @@
     {
       "executable": false,
       "path": "NOTICE.md",
-      "sha256": "192e926e1c3b277b624c728c6dfbff565f15c8448a3e833bd33fe3e62b6a4140"
+      "sha256": "088bc3ef8e04b3c46315c22c4621f3cce9968e87320a92b4a97cdcec74cec993"
     },
     {
       "executable": false,
       "path": "README.md",
-      "sha256": "555a9c765e2e1916184c84248822321b29b35ec93322376cb5cfb7ce6a972b68"
+      "sha256": "1a8575286f5f1fdb8b233fd6f983ad8248a092f2eee896ba9a71436a223b7976"
     },
     {
       "executable": false,
       "path": "VERSION",
-      "sha256": "1575e1af4a95f12f70b4ee6a6adce8160953d93ea17dc2611b90883ccc3ad3b8"
+      "sha256": "9f77034b1eb57d24f21ac7deb65c9cc99f63b72775e311f1f280ab2b6c2e06a2"
     },
     {
       "executable": false,
       "path": "adapters/claude.md",
-      "sha256": "51392019479360daa9d2b2992752a5a4931b72f05997ab82a138829366eacb48"
+      "sha256": "8bec6b665fce7d423bd93864ec08fdb8568cdda145d921c86399df52d3a28d99"
     },
     {
       "executable": false,
       "path": "adapters/codex.md",
-      "sha256": "ab22d9451af9a6dd28e0fb515cb43cf14478c201c018ddfaa31b10d9dfb57bbb"
+      "sha256": "a969d8ef735acd6109a624083f8fe29d342f8912f5cb1d138dc9c74e0fa6ea61"
     },
     {
       "executable": false,
       "path": "adapters/hermes.md",
-      "sha256": "8d8dac0c6d2c7b7775e5faabbdec8c539db03e7e4627c6c078ac5dc261460ff9"
+      "sha256": "bf75da4e1c503b1220128643ec0665cceb17086da8bc5a4e5e596388798131ae"
     },
     {
       "executable": false,
       "path": "adapters/minimax.md",
-      "sha256": "89ec4b39477c0b974241c1b151d0a3b4bc19a12131b692b64f4b406e8cd73c0a"
+      "sha256": "cd53a2c7b0c04ae80e2ee8b4d9f3f1a703699ac5f2e9109a61ff83c822763c61"
     },
     {
       "executable": false,
       "path": "adapters/qwen.md",
-      "sha256": "99ee4cf0f441aade18f218452830ee6fa6b0bddef6aa37f841de6980d96ff96d"
+      "sha256": "c1d90254cd8478c43cceccfaaf0c2981a09fb6d77109f3b071535456fe677333"
     },
     {
       "executable": false,
@@ -53,37 +53,37 @@
     {
       "executable": false,
       "path": "frameworks/programming-loop.md",
-      "sha256": "f1e04433275f6e8d3b6971009417183ae086f7650c4bb60f55802a08420ad3a6"
+      "sha256": "70362bd4df37f7a08d93dd06a6fafd5bd27850099f8b671fd1a26f16084fe580"
     },
     {
       "executable": false,
       "path": "profiles/claude/programming-loop-reviewer.md",
-      "sha256": "c5aa930a38a9b5795a927b78f96d5f538607e56fd6d82f0cdcbba974caf03a09"
+      "sha256": "0a3bda1b4b1e50c0ea75fc3ead384e29887e9806255ff7812a469a44575c8e4c"
     },
     {
       "executable": false,
       "path": "profiles/qwen/programming-loop-reviewer.md",
-      "sha256": "083fdb0244d4061bec893c65d8b4c3f8286387c48953e8df77ff87d8e88ce209"
+      "sha256": "cfdbbb01e44ed1b8a5b2ae2e0ac3576a8eb33ba64a27c95d71e8d4cea87a3edb"
     },
     {
       "executable": false,
       "path": "profiles/zcode/programming-loop-reviewer.md",
-      "sha256": "ea1fbd60f4683fd0fc33394c68b1b4a8ce83778e1ac6974829d5aa5630fa9fed"
+      "sha256": "728a9f4645076b30007dd931dd54dedda3e6426174e0ed3cb6c59612c9e4cabf"
     },
     {
       "executable": false,
       "path": "scripts/install.py",
-      "sha256": "c81a12794920fad42c45fc78ea1e8c1ac79ca35d2976adf646aa0fb612469671"
+      "sha256": "d843283fd3cb4fceb8e4cd9e9f98d3b3cbf7af5eb81c2e034e9ad1ebf95e0292"
     },
     {
       "executable": false,
       "path": "skills/programming-loop/SKILL.md",
-      "sha256": "858e9df37aa6b55a125ec8909bfb1ec407144a20bbc233f51c71626e883a28b9"
+      "sha256": "45dd03fa8b448a55021ba66d5e1d47776dc46a9dc298e90ce71f82d5a57c477d"
     },
     {
       "executable": false,
       "path": "tests/test_distribution.py",
-      "sha256": "0a841d12cdc2e9070a5f42526c5caea120a73936faab8389b6b55d86e763d0b8"
+      "sha256": "16693dff946a046945c41276e841862818988bd64f4507029d368f263fa57322"
     }
   ],
   "version": 1

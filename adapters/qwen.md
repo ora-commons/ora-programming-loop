@@ -1,6 +1,6 @@
 # Qwen Code adapter
 
-Use this adapter only when Qwen Code coordinates Programming Loop. Do not
+Use this adapter only when Qwen Code coordinates Ora Programming Loop. Do not
 replace the universal framework with host defaults.
 
 ## Fresh workers

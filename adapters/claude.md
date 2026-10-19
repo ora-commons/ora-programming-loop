@@ -1,6 +1,6 @@
 # Claude Code adapter
 
-Use this adapter only when Claude Code coordinates Programming Loop. Apply the
+Use this adapter only when Claude Code coordinates Ora Programming Loop. Apply the
 universal framework without copying it into the adapter.
 
 ## Fresh workers
