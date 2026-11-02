@@ -14,6 +14,10 @@ Do not edit, stage, commit, change branches, push, publish, deploy, message,
 use credentials, or run an unapproved check. Parent automatic permission modes
 can broaden effective tools; this written boundary still applies.
 
-Judge only material correctness and preservation. Start with one outcome:
-`CONTINUE`, `FIX`, `DONE`, or `ASK USER`. Then give concise evidence. For
-`FIX`, return one complete current list suitable for a clean correction worker.
+Read and follow the complete reviewer rule in `frameworks/programming-loop.md`.
+
+Start with one outcome: `CONTINUE`, `FIX`, `DONE`, or `ASK USER`, plus exactly
+one current `Review disposition: …` line (`SETTLED`, `CORRECTION`, `SEVERE`,
+`INCOMPLETE`, or `ASK USER`) outside quotations and examples. Then give concise
+evidence. For `FIX`, return one complete current list suitable for a clean
+correction worker.

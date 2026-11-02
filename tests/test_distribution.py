@@ -186,11 +186,11 @@ class DistributionTests(unittest.TestCase):
                      "source_revision", "source_tree"):
             legacy_identity.pop(name)
         (skill / "SOURCE.json").write_text(json.dumps(legacy_identity), encoding="utf-8")
-        (source / "VERSION").write_text("1.2.1\n", encoding="utf-8")
+        (source / "VERSION").write_text("1.3.0\n", encoding="utf-8")
         (source / "frameworks/programming-loop.md").write_text("# Replacement complete method\n", encoding="utf-8")
         installer.install(source, "claude", self.home)
         self.assertEqual(extra.read_text(), "Keep my notes")
-        self.assertEqual((skill / "VERSION").read_text(), "1.2.1\n")
+        self.assertEqual((skill / "VERSION").read_text(), "1.3.0\n")
         self.assertEqual((skill / "frameworks/programming-loop.md").read_bytes(),
                          (source / "frameworks/programming-loop.md").read_bytes())
         self.assert_no_staging("claude")
@@ -226,7 +226,7 @@ class DistributionTests(unittest.TestCase):
         skill = installer.install(source, "hermes", self.home)
         root = self.home / installer.HOSTS["hermes"]
         preserved = self.tree_bytes(root)
-        (source / "VERSION").write_text("1.2.1\n", encoding="utf-8")
+        (source / "VERSION").write_text("1.3.0\n", encoding="utf-8")
         (source / "frameworks/programming-loop.md").write_text(
             "# Replacement complete method\n", encoding="utf-8"
         )
@@ -240,7 +240,7 @@ class DistributionTests(unittest.TestCase):
         identity = json.loads((skill / "SOURCE.json").read_text())
         self.assertEqual(identity["source_kind"], "public-release")
         self.assertEqual(identity["source_manifest_sha256"], installer.digest(manifest_bytes))
-        self.assertEqual((skill / "VERSION").read_text(), "1.2.1\n")
+        self.assertEqual((skill / "VERSION").read_text(), "1.3.0\n")
         self.assertEqual((skill / "frameworks/programming-loop.md").read_bytes(),
                          (source / "frameworks/programming-loop.md").read_bytes())
         self.assert_no_staging("hermes")
@@ -417,7 +417,7 @@ class DistributionTests(unittest.TestCase):
         previous = (skill / "SOURCE.json").read_bytes()
         profile = self.home / ".qwen/agents" / installer.PROFILE
         old_profile = profile.read_bytes()
-        (source / "VERSION").write_text("1.2.1\n", encoding="utf-8")
+        (source / "VERSION").write_text("1.3.0\n", encoding="utf-8")
         (source / "profiles/qwen" / installer.PROFILE).write_text("new profile\n", encoding="utf-8")
         replace = os.replace
         failed = False
@@ -557,11 +557,11 @@ class DistributionTests(unittest.TestCase):
 
     def test_older_release_never_replaces_newer_installed_version(self):
         source = self.copy_source("newer-release")
-        (source / "VERSION").write_text("1.3.0", encoding="utf-8")
+        (source / "VERSION").write_text("1.3.1", encoding="utf-8")
         installer.install(source, "codex", self.home)
         root = self.home / installer.HOSTS["codex"]
         preserved = self.tree_bytes(root)
-        with self.assertRaisesRegex(installer.InstallationError, r"1\.3\.0.*1\.2\.1"):
+        with self.assertRaisesRegex(installer.InstallationError, r"1\.3\.1.*1\.3\.0"):
             installer.install(ROOT, "codex", self.home)
         self.assertEqual(self.tree_bytes(root), preserved)
         self.assertFalse(installer.inspect_installation(root, "codex")["mismatches"])
@@ -573,21 +573,21 @@ class DistributionTests(unittest.TestCase):
                 ["install", "--host", "codex", "--home", str(self.home), "--source", str(ROOT)]
             )
         self.assertEqual(status, 1)
+        self.assertIn("1.3.1", errors.getvalue())
         self.assertIn("1.3.0", errors.getvalue())
-        self.assertIn("1.2.1", errors.getvalue())
         self.assertEqual(self.tree_bytes(root), preserved)
         self.assert_no_staging("codex")
 
         newer = self.copy_source("newer-release-again")
-        (newer / "VERSION").write_text("1.3.1", encoding="utf-8")
+        (newer / "VERSION").write_text("1.3.2", encoding="utf-8")
         skill = installer.install(newer, "codex", self.home)
-        self.assertEqual((skill / "VERSION").read_text(), "1.3.1")
+        self.assertEqual((skill / "VERSION").read_text(), "1.3.2")
 
         # A newer legacy-named entry is protected the same way.
-        legacy = self.install_legacy_entry("qwen", version="1.3.0")
+        legacy = self.install_legacy_entry("qwen", version="1.3.1")
         root = self.home / installer.HOSTS["qwen"]
         preserved = self.tree_bytes(root)
-        with self.assertRaisesRegex(installer.InstallationError, r"1\.3\.0.*1\.2\.1"):
+        with self.assertRaisesRegex(installer.InstallationError, r"1\.3\.1.*1\.3\.0"):
             installer.install(ROOT, "qwen", self.home)
         self.assertEqual(self.tree_bytes(root), preserved)
         self.assertTrue(legacy.is_dir())

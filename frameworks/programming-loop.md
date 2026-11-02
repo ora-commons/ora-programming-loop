@@ -152,6 +152,7 @@ Executor limits:
 - Do not accept a worker's summary in place of the candidate.
 - Do not run a full suite, build, lint, audit, benchmark, or extra reassurance check unless it is named in the approved testing ceiling.
 - An additional or repeated check must satisfy the supplied task's necessity rule; a material-risk label alone is not proof. Obtain any necessary authority change before running it.
+- Tests: simple checks that something happened or didn't are fine. Do not add elaborate tests for rare, unimportant outcomes. A finding alone does not justify a test. Judge a test's whole addition, setup included.
 
 ## 5. Dispatch an independent reviewer
 
@@ -184,36 +185,53 @@ Reviewer conduct:
 - When acceptance depends on an image, interface, audio, video, PDF, remote source, or live state, it inspects that evidence with an appropriate available tool; a description or executor claim is not a substitute.
 - If required evidence is inaccessible, the criterion remains unverified.
 
-### Materiality
+### Reviewer rule
 
-Review only for material defects. A defect is material when it causes or is highly likely to cause:
+The reviewer examines widely. It records potential issues and why they do or do not warrant a change, including close calls. Good review work means finding real errors and explaining why other issues don't justify code or a test. "No findings" is full success.
 
-- wrong user-visible behavior;
-- an unmet approved criterion;
-- content or data loss;
-- a false claim;
-- a real runtime or delivery failure;
-- an unauthorized effect;
-- broken atomicity;
-- failed necessary recovery;
-- a security exposure; or
-- loss of protected work.
+Every finding states: input or situation; actual result; expected result; evidence (command output or a traced code path); who is harmed and how; size of the smallest fix.
 
-Not rejection reasons: requests for added hardening, tracking, preferred abstraction, or unrequested generality, and style preferences.
+- Actionable only with evidence of a result contrary to the approved plan in a way that changes the result the user asked for, or a real error with identified harm.
+- Severe failures are unrecoverable data loss, security exposure, and unauthorized or erroneous spending, sending or publishing. For these, a traced path from an actual permitted input to the harm is sufficient; do not cause the harm to prove it.
+- Not actionable, so record it and move on: "could", "might" or "in theory" with no demonstrated case; rare conditions with unimportant results; errors nobody would notice and nothing depends on; fixes bigger than the harm, except on severe failures; hardening or style with no proven harm.
+
+A finding against the plan itself must show a user harm or a contradiction with the owner's decision. Do not invent requirements; recommend removing unnecessary ones or correcting contradictions with the owner's decisions.
+
+### Builder disposition
+
+When a reviewer disagrees with a decision, it gives its reasoning and, if one is available, a reasonable alternative. The alternative must not add bloat or unnecessary tests, and must not contradict the Specification or the user's stated goal. The builder adopts it or rejects it with reasons; a rejection stands, except on severe failures.
+
+- The builder fixes actionable findings the smallest way.
+- The builder may reject a finding as unnecessary, recording its reasons. A rejection stands, except on severe failures.
+- A finding does not expand authority or require a test.
 
 ### Outcomes
 
 Require exactly one leading outcome and concise evidence:
 
 - `CONTINUE` — this slice is sound and approved work remains.
-- `FIX` — correctable material defects remain within approved scope.
+- `FIX` — correctable actionable findings remain within approved scope.
 - `DONE` — the complete approved outcome is independently established.
 - `ASK USER` — responsible continuation needs changed authority, inaccessible human-only input, resolution of conflicting instructions, or another user-reserved decision.
+
+Every completed review report and correction result also carries exactly one current line:
+
+```text
+Review disposition: SETTLED
+```
+
+- `SETTLED` — review finished; every finding was fixed or rejected with reasons; no unresolved severe finding remains. Continue toward delivery.
+- `CORRECTION` — review finished and findings require builder decisions. Run correction.
+- `SEVERE` — a demonstrated severe finding remains unresolved. Preserve the candidate and return the necessary decision to the owner.
+- `INCOMPLETE` — review or correction did not finish. Preserve its work; use the existing operational recovery route. Never complete.
+- `ASK USER` — missing authority or an unresolved product choice requires the owner. Preserve this route.
+
+Read exactly one disposition line from the **current completed report**, outside quotations and examples. Missing, duplicate, unknown or contradictory declarations mean `INCOMPLETE`. "No severe finding stated" means an affirmative, completed `SETTLED` or `CORRECTION` declaration, whose instructions expressly require identifying every severe finding; it never means an absent severity declaration. A previously recorded severe finding cannot disappear through rejection: settlement requires a recorded fix and evidence that its harmful path was removed.
 
 Outcome rules:
 
 - A final `CONTINUE` is not completion; treat it as `FIX` because final review must establish the whole outcome.
-- A missing check or inaccessible required artifact cannot become `DONE` through confident prose.
+- A missing check or inaccessible required artifact cannot become `DONE` or `SETTLED` through confident prose; its disposition is `INCOMPLETE`.
 
 ## 6. Continue by evidence
 
@@ -239,17 +257,17 @@ Outcome rules:
 
 ### Outcome handling
 
-- On `FIX`: consolidate the complete current defect list and dispatch a new clean executor with the same plan and authority; never resume the rejected executor for correction. Rejected implementation is evidence, not a code donor, except for items identified in independent acceptance evidence. Review the corrected cumulative candidate again with a new independent reviewer. Additional in-scope findings do not require new approval.
+- On `FIX`: consolidate the complete current defect list and dispatch a new clean executor with the same plan and authority; never resume the rejected executor for correction. Rejected implementation is evidence, not a code donor, except for items identified in independent acceptance evidence. The builder then fixes or rejects each finding with reasons. A settled correction — every finding fixed or reasonably rejected with recorded reasons, and no unresolved severe finding — permits milestone progress without another approval review. An unresolved severe finding preserves the candidate and returns the necessary decision to the owner.
 - On `CONTINUE`: commit the accepted coherent slice when the approved Git path allows it, then dispatch the next milestone from that rollback point. Never commit a rejected slice merely to make the working tree tidy.
 - On `DONE`: confirm the candidate, checks, preservation, and cleanup, then perform only the plan's remaining finish line. A review pass is a checkpoint, not permission to invent a push, merge, deployment, publication, or release.
 - On `ASK USER`: return the exact unresolved decision or missing authority with the candidate preserved. Show the real alternatives, their cost and risk, whether they are reversible, and a recommendation.
+- On `INCOMPLETE` or a missing, duplicate, unknown or contradictory disposition: preserve the review's work and use the existing operational recovery route. Never complete from an unfinished review; a transport failure must never erase a recorded severe finding.
 
 ### Convergence
 
-- Continue correction while evidence improves: checks pass, failures narrow, causes become known, defects decrease, a milestone completes, or material uncertainty is removed.
-- There is no arbitrary correction limit while progress continues.
-- Before declaring a blocker, exhaust safe alternatives inside the approved plan.
-- If three consecutive correction/review cycles reproduce the same material failure with no measurable progress, return one consolidated blocker rather than looping indefinitely.
+- Continue while evidence improves: checks pass, failures narrow, causes become known, defects decrease, a milestone completes, or material uncertainty is removed.
+- Rejected non-severe findings do not force another review or prevent completion. There is no compulsory correction round and no reviewer-agreement gate.
+- Before declaring a blocker, exhaust safe alternatives inside the approved plan. Unresolved severe findings go to the owner.
 
 ## 7. Supervise long-running work
 
@@ -257,17 +275,33 @@ Outcome rules:
 - At each named milestone, require a safe stopping point before inspection; use the confirmed host stop route if that point is missed or active work stalls without progress. Preserve recoverable work and confirm task-owned writers and mutating commands have stopped before inspection; interrupting an agent alone is not proof.
 - Inspect the cumulative diff and candidate against governing materials: drift, production/test growth, repeated check invocations, reference fidelity, rejected executor reuse, and attempted gate bypass. Every added component and test must serve an approved behavior; remove or consolidate unnecessary duplicate paths, replacement architecture, speculative helpers, compatibility layers, scaffolding, and private-detail tests through the executor.
 - Use existing check output to count invocations. A named test file is not unlimited authority. Additional or repeated checks must meet the governing task's proof and authority rules; stop when authorized checks and material review are satisfied.
-- Resume healthy work automatically after inspection. Route material defects through the existing correction procedure; involve the user only for an unresolved retained decision, necessary material deviation, or retained final inspection.
+- Resume healthy work automatically after inspection. Route findings that warrant change through the existing correction procedure; involve the user only for an unresolved retained decision, necessary material deviation, or retained final inspection.
 - Keep the supervisor read-only: no product edits, tests, or commits. Use bounded host operations, no permanent service or detached poller, and end task-owned supervision when execution ends.
 
 ## 8. Finish, deliver, and recover
+
+### Final verification and correction
+
+- Before finishing, run one cumulative independent verification of the whole candidate. It receives the review record — findings, rejections, pushback and reversals — as material to examine, while independently inspecting the candidate.
+- Verification checks the record as a third reader and may recommend reversing any decision, with reasons.
+- Final correction fixes or rejects each recommendation with reasons, and its result carries the disposition line. Rejected non-severe findings do not force another review or prevent completion. Unresolved severe findings go to the owner.
+- The coordinator accepts a settled (`SETTLED`) final correction without another correctness review. Completion after final correction says **completed after correction**, without inventing a subsequent verification pass.
+
+### Removal-only pass
+
+- Before landing, dispatch one fresh reviewer whose only job is to recommend what can be removed while still meeting the stated user function.
+- The builder applies each recommendation or rejects it with reasons.
+
+### Record
+
+- Findings, rejections, pushback and reversals are retained as ordinary project files committed to Git, with the supplied instructions and conversations. Add no separate persistence system — no runtime, database, or installer mechanism; the Loop is an instructed method. Include no credentials or secrets. They are not sent to the owner.
 
 Completion requires all of the following:
 
 - the requested behavior works end to end;
 - unrelated behavior and important content remain intact;
 - the exact checks pass and required direct inspection is complete;
-- an independent reviewer returns `DONE` for the cumulative result;
+- cumulative final verification is complete and final correction settled every recommendation with reasons, with no unresolved severe finding;
 - the approved delivery endpoint is actually reached;
 - temporary scaffolding and task-owned background processes are removed; and
 - no accepted output is parked unused.
