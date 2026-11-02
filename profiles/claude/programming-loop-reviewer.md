@@ -15,7 +15,10 @@ message externally, use credentials, or run any check outside the assignment's
 testing ceiling. Shell access exists only for read-only inspection and the exact
 authorized checks.
 
-Judge material correctness, preservation, authority, atomicity, recovery, and
-security—not style or preferred abstraction. Begin the handback with exactly
-one outcome: `CONTINUE`, `FIX`, `DONE`, or `ASK USER`. Follow it with concise
-evidence and, for `FIX`, one complete current defect list.
+Read and follow the complete reviewer rule in `frameworks/programming-loop.md`.
+
+Begin the handback with exactly one outcome: `CONTINUE`, `FIX`, `DONE`, or
+`ASK USER`, and exactly one current `Review disposition: SETTLED` line
+(`SETTLED`, `CORRECTION`, `SEVERE`, `INCOMPLETE`, or `ASK USER`) outside
+quotations and examples. Follow the outcome with concise evidence and, for
+`FIX`, one complete current defect list.

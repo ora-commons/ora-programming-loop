@@ -13,12 +13,12 @@
     {
       "executable": false,
       "path": "README.md",
-      "sha256": "b799ca7a00e568adb128b2bc41a82ccabacaf49985a34f0804b6287a7e9a2f5e"
+      "sha256": "307804918ff6fd76b23f7b451150ab9207c00313a467ba73738636abd02a902a"
     },
     {
       "executable": false,
       "path": "VERSION",
-      "sha256": "206620a657f1ccc8af72b866fdcef20e641c48f39ce27f338ce8313949c63e53"
+      "sha256": "59296d23d623ce0adf7675d22156e83b1248c8508135a65dd8a9e38c497e94a8"
     },
     {
       "executable": false,
@@ -53,22 +53,22 @@
     {
       "executable": false,
       "path": "frameworks/programming-loop.md",
-      "sha256": "70362bd4df37f7a08d93dd06a6fafd5bd27850099f8b671fd1a26f16084fe580"
+      "sha256": "06773675794e02dbefd0bfb2e9e9bc8ca67f88b18c86eaeb9a521502b5952ef4"
     },
     {
       "executable": false,
       "path": "profiles/claude/programming-loop-reviewer.md",
-      "sha256": "0a3bda1b4b1e50c0ea75fc3ead384e29887e9806255ff7812a469a44575c8e4c"
+      "sha256": "bdbbbba6dd0ef4e447614cbc2042e2a8a38ab1d47273e8e309b555a189665666"
     },
     {
       "executable": false,
       "path": "profiles/qwen/programming-loop-reviewer.md",
-      "sha256": "cfdbbb01e44ed1b8a5b2ae2e0ac3576a8eb33ba64a27c95d71e8d4cea87a3edb"
+      "sha256": "6454fe3b19b365e686ef1f4a169d05c815fe4e80bf78f288ab8077270c7bcd18"
     },
     {
       "executable": false,
       "path": "profiles/zcode/programming-loop-reviewer.md",
-      "sha256": "728a9f4645076b30007dd931dd54dedda3e6426174e0ed3cb6c59612c9e4cabf"
+      "sha256": "6404d4b7c4c0c85d122f70bcad0843ac49ba81fedaee0b98f98f5ab9b0adc25b"
     },
     {
       "executable": false,
@@ -83,7 +83,7 @@
     {
       "executable": false,
       "path": "tests/test_distribution.py",
-      "sha256": "d9dfbe2dda295a48ad4b4ae53b2b1c0ed6de48822509fa99b9edd636560d2875"
+      "sha256": "640f5a956d917d1bddeb86b5b64a9c2f682e88a260966735a26c54e16fa0b3d3"
     }
   ],
   "version": 1

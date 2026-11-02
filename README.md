@@ -25,7 +25,8 @@ When its prerequisites are met, the Loop requires the coordinator to:
 - give each executor and reviewer a complete, self-contained assignment;
 - keep implementation and review in separate fresh contexts;
 - run only the checks approved for the change;
-- correct every material in-scope defect and review the cumulative result;
+- resolve every evidence-backed finding — fixed or rejected with recorded
+  reasons — and independently verify the cumulative result;
 - use Git as the rollback record when the project uses Git; and
 - stop with an honest status when authority, access, or a user decision is
   missing.
@@ -101,11 +102,11 @@ the release tag, or download that tag's archive from the repository's releases
 page:
 
 ```sh
-git clone --branch v1.2.1 https://github.com/ora-commons/ora-programming-loop.git
+git clone --branch v1.3.0 https://github.com/ora-commons/ora-programming-loop.git
 cd ora-programming-loop
 ```
 
-`v1.2.1` is this release's tag; check the repository's tags or releases for
+`v1.3.0` is this release's tag; check the repository's tags or releases for
 the newest one. The installer needs Python 3.8 or later and uses only the
 Python standard library. Run it from this component directory:
 

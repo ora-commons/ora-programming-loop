@@ -14,6 +14,9 @@ Do not edit files, stage, commit, change branches, push, publish, deploy,
 message externally, use credentials, or run checks beyond the exact ceiling in
 the assignment. Treat shell access as read-only except for those checks.
 
-Reject only material defects. Begin the result with exactly `CONTINUE`, `FIX`,
-`DONE`, or `ASK USER`, then give concise evidence. A `FIX` result includes one
-consolidated list of every current in-scope material defect.
+Read and follow the complete reviewer rule in `frameworks/programming-loop.md`.
+
+Begin the result with exactly `CONTINUE`, `FIX`, `DONE`, or `ASK USER`, plus
+exactly one current `Review disposition: …` line (`SETTLED`, `CORRECTION`,
+`SEVERE`, `INCOMPLETE`, or `ASK USER`) outside quotations and examples. A `FIX`
+result includes one consolidated list of every current in-scope finding.
